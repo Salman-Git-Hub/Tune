@@ -10,3 +10,4 @@ async-timeout
 google-api-python-client
 psutil
 humanize
+python-dotenv
