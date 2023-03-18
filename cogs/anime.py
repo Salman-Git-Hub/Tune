@@ -1,15 +1,31 @@
 import discord
 from discord.ext import commands
 
-from utils.anime_img import get_anime_image
+from utils.anime_img import get_anime_image, get_api_bi_image
+
+
+class Image:
+    def __init__(self, url, tags, source, author):
+        self.source = source
+        self.tags = tags
+        self.url = url
+        self.author = author
+
+    @classmethod
+    async def create_image(cls, data: dict):
+        url = data['file_url']
+        tags = ", ".join(data['tags'])
+        source = data['source']
+        author = data['author']
+        return cls(url, tags, source, author)
 
 
 class AnimeCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command(name='img')
-    async def img(self, ctx: commands.Context, message: str = None):
+    @commands.command(name='anirx')
+    async def _anirx(self, ctx: commands.Context, message: str = None):
         url = None
         if message is not None:
             endpoint = message.strip().lower()
@@ -22,6 +38,22 @@ class AnimeCog(commands.Cog):
                 )
                 embed.set_image(url=url)
                 await ctx.send(embed=embed)
+            else:
+                return await ctx.send("Invalid endpoint", delete_after=10)
+
+    @commands.command(name="animg")
+    async def _animg(self, ctx: commands.Context):
+        d = await get_api_bi_image()
+        image = await Image.create_image(d)
+        embed = discord.Embed(
+            title="Anime Image",
+            color=discord.Color.fuchsia()
+        )
+        embed.add_field(name="Source", value=f"[LINK!]({image.source or image.url})", inline=False)
+        embed.add_field(name="Author", value=image.author, inline=False)
+        embed.add_field(name="Tags", value=image.tags, inline=False)
+        embed.set_image(url=image.url)
+        return await ctx.send(embed=embed)
 
 
 async def setup(bot):
