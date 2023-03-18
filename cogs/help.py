@@ -3,7 +3,7 @@ import sys
 import discord
 from discord.ext import commands
 
-from utils import txt_parser
+from utils.txt_parser import get_help_list
 
 sys.path.append("utils")
 
@@ -11,7 +11,7 @@ sys.path.append("utils")
 class HelpCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.help_list = txt_parser.get_help_list()
+        self.help_list = get_help_list()
         self.text = self.help_list[0]
         self.image = self.help_list[1]
         self.voice = self.help_list[2]
