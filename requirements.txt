@@ -1,0 +1,11 @@
+PyNaCl
+pyparsing
+yt-dlp
+discord.py
+ffmpeg
+aiohttp
+requests
+async-timeout
+google-api-python-client
+psutil
+humanize
