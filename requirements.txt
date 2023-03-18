@@ -1,6 +1,7 @@
 PyNaCl
 pyparsing
 yt-dlp
+youtube-dl
 discord.py
 ffmpeg
 aiohttp
