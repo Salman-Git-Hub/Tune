@@ -3,14 +3,14 @@ import datetime
 import itertools
 import json
 import math
-import os
 import random
 from sqlite3 import OperationalError
 import discord
-import pafy
 import yt_dlp
 from async_timeout import timeout
 from discord.ext import commands
+
+import pafy
 from db.music import *
 from utils.playlist import get_playlist
 from utils.search import search_video

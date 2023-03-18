@@ -1,6 +1,9 @@
-from googleapiclient.discovery import build
-from utils.env import YOUTUBE_API_KEY, MAX_SEARCH_ITEM
 import sys
+
+from googleapiclient.discovery import build
+
+from utils.env import YOUTUBE_API_KEY, MAX_SEARCH_ITEM
+
 sys.path.append('utils')
 
 youtube = build('youtube', 'v3', developerKey=YOUTUBE_API_KEY)

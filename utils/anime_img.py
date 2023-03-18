@@ -1,6 +1,6 @@
-from aiohttp import request
 import random
 
+from aiohttp import request
 
 waifu_base_url = "https://api.waifu.pics/"
 neko_love_base_url = 'https://neko-love.xyz/api/v1/'

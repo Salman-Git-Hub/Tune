@@ -1,8 +1,7 @@
-from discord.ext import commands
 import discord
-import psutil
 import humanize
-
+import psutil
+from discord.ext import commands
 
 
 class StatusCog(commands.Cog):

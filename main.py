@@ -1,12 +1,11 @@
-import os
-from discord.ext import commands
-import discord
-from utils.env import TOKEN
-import logging
 import asyncio
+import logging
+import os
 import time
-import climage
+import discord
+from discord.ext import commands
 
+from utils.env import TOKEN
 
 client = commands.Bot(command_prefix="'",
                       help_command=None,

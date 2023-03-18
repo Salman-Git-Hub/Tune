@@ -1,5 +1,7 @@
-from googleapiclient.discovery import build
 import sys
+
+from googleapiclient.discovery import build
+
 sys.path.append('utils')
 from utils.env import YOUTUBE_API_KEY, MAX_PLAYLIST_ITEM
 

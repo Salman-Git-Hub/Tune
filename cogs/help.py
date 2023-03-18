@@ -1,7 +1,10 @@
-from utils import txt_parser
-from discord.ext import commands
-import discord
 import sys
+
+import discord
+from discord.ext import commands
+
+from utils import txt_parser
+
 sys.path.append("utils")
 
 

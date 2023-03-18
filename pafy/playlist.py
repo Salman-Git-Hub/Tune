@@ -1,11 +1,10 @@
-import sys
-import re
-import json
 import itertools
+import json
+import re
+import sys
 
 from . import g
 from .pafy import new, get_categoryname, call_gdata, fetch_decode
-
 
 if sys.version_info[:2] >= (3, 0):
     # pylint: disable=E0611,F0401,I0011
