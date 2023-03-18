@@ -138,19 +138,18 @@ class Song:
 
 
 class SongItem:
-    def __init__(self, ctx, value, time: int = 0):
+    def __init__(self, ctx, value, id: str = None, time: int = 0):
         self.time = time
         self.ctx = ctx
-        self.value = value
-        self.song: Song = None
+        self.name = value
+        self.id = id
 
     def __str__(self):
         return '**{0.value}**'.format(self)
 
     async def create_song(self):
-        source = await YTDLSource.create_source(self.ctx, self.value, time=self.time)
-        self.song = Song(source)
-        return self
+        source = await YTDLSource.create_source(self.ctx, self.name, time=self.time)
+        return Song(source)
 
 
 class SongQueue(asyncio.Queue):
@@ -234,12 +233,12 @@ class VoiceState:
                     self.bot.loop.create_task(self.stop())
                     return
             else:
-                self.current = self.current.create_song()
-            self.current.song.source.volume = self._volume
-            self.voice.play(self.current.song.source, after=self.play_next_song)
-            self.end = self.current.song.source.int_duration
+                self.current = await self.current.create_song()
+            self.current.source.volume = self._volume
+            self.voice.play(self.current.source, after=self.play_next_song)
+            self.end = self.current.source.int_duration
             self.start = datetime.datetime.now()
-            await self.current.source.channel.send(embed=self.current.song.create_embed())
+            await self.current.source.channel.send(embed=self.current.create_embed())
 
             await self.next.wait()
 
@@ -278,8 +277,9 @@ async def import_playlist(ctx: commands.Context, attach: discord.Attachment):
     pl_name = data['playlist_name']
     if playlists is not None:
         if pl_name in playlists:
-            return await ctx.send(embed=discord.Embed(title=f"Playlist with name: **{pl_name.capitalize()}** already exists!",
-                                                      color=discord.Color.magenta()))
+            return await ctx.send(
+                embed=discord.Embed(title=f"Playlist with name: **{pl_name.capitalize()}** already exists!",
+                                    color=discord.Color.magenta()))
     try:
         create_playlist(ctx.guild.id, pl_name)
     except OperationalError:
@@ -327,7 +327,13 @@ class Music(commands.Cog):
     async def _join(self, ctx: Context):
         """Joins a voice channel."""
 
-        destination = ctx.author.voice.channel
+        try:
+            destination = ctx.author.voice.channel
+        except AttributeError:
+            return await ctx.send(embed=discord.Embed(
+                title="You're not connected to a voice channel!",
+                color=discord.Color.magenta()
+            ), delete_after=5)
         if ctx.voice_state.voice:
             await ctx.voice_state.voice.move_to(destination)
             return
@@ -597,7 +603,16 @@ class Music(commands.Cog):
 
         queue = ''
         for i, song in enumerate(ctx.voice_state.songs[start:end], start=start):
-            queue += '`{0}.` [**{1.source.title}**]({1.source.url})\n'.format(i + 1, song)
+            try:
+                name = song.name
+                _id = song.id
+                if _id is None:
+                    raise AttributeError
+                if "://" not in _id:
+                    _id = f"https://youtu.be/{_id}"
+                queue += '`{0}.` [**{1}**]({2})\n'.format(i + 1, name, _id)
+            except AttributeError:
+                queue += '`{0}.` **{1}**\n'.format(i + 1, song.name)
 
         embed = (discord.Embed(description='**{} tracks:**\n\n{}'.format(len(ctx.voice_state.songs), queue))
                  .set_footer(text='Viewing page {}/{}'.format(page, pages)))
@@ -659,17 +674,21 @@ class Music(commands.Cog):
         await ctx.message.add_reaction('✅')
 
     async def add_to_queue(self, ctx: Context, items, name: str = None):
-        if not ctx.voice_state.voice.is_connected():
+        if ctx.voice_state.voice is None:
             return
+        else:
+            await ctx.invoke(self._join)
         try:
             for i, video in enumerate(items):
                 try:
                     # from online playlist, keys -> title, id
                     video_name = video.get("title")
+                    video_id = video.get("id")
                 except AttributeError:
                     # from local database, values -> (title, id, index)
                     video_name = video[0]
-                song_item = SongItem(ctx, video_name)
+                    video_id = video[1]
+                song_item = SongItem(ctx, video_name, video_id)
                 await ctx.voice_state.songs.put(song_item)
             new_embed = discord.Embed(
                 title=f'Added playlist {name if not name is None else ""} to the queue!',
@@ -710,7 +729,8 @@ class Music(commands.Cog):
             with open(f"tmp/playlist.{ctx.guild.id}.0.json", 'w', encoding='utf-8') as f:
                 json.dump(exp, f, indent=4)
             await ctx.send(embed=discord.Embed(title="Exported playlist file!", color=discord.Color.magenta())
-                           , file=discord.File(fr"./tmp/playlist.{ctx.guild.id}.0.json", filename=f"{pl_name}-export.json"))
+                           , file=discord.File(fr"./tmp/playlist.{ctx.guild.id}.0.json",
+                                               filename=f"{pl_name}-export.json"))
             os.remove(f"tmp/playlist.{ctx.guild.id}.0.json")
             return
 
@@ -720,7 +740,7 @@ class Music(commands.Cog):
                 return await ctx.send("Attach the file along with command!")
 
             await ctx.send(embed=discord.Embed(title="Importing playlist!",
-                                                     color=discord.Color.magenta()))
+                                               color=discord.Color.magenta()))
             for file in attach:
                 self.bot.loop.create_task(import_playlist(ctx, file))
             return
@@ -883,13 +903,14 @@ class Music(commands.Cog):
                 return await ctx.send("Playlist does not exist!")
             if items is None:
                 return await ctx.send("Playlist name required!")
-            embed = discord.Embed(
-                title='Just a sec!',
-                description=f"Adding playlist {playlist.capitalize()} to the queue!",
-                color=discord.Color.magenta()
-            )
-            await ctx.send(embed=embed)
-            self.bot.loop.create_task(self.add_to_queue(ctx, items, playlist))
+            if ctx.voice_state.voice is not None:
+                embed = discord.Embed(
+                    title='Just a sec!',
+                    description=f"Adding playlist {playlist.capitalize()} to the queue!",
+                    color=discord.Color.magenta()
+                )
+                await ctx.send(embed=embed)
+                self.bot.loop.create_task(self.add_to_queue(ctx, items, playlist))
             return
 
     # @commands.command(name='f', aliases=['filter'])
