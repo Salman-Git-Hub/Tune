@@ -36,15 +36,17 @@ class HelpCog(commands.Cog):
     @help.command(name='img')
     async def help_image(self, ctx: commands.Context):
         embed = discord.Embed(
-            title='Image commands!',
+            title='Anime Image commands!',
             description='',
             color=discord.Color.dark_blue()
         )
         embed.set_thumbnail(
             url='https://img.icons8.com/ios-glyphs/60/undefined/help.png')
+        embed.add_field(name="Anime reaction", value="", inline=False)
         embed.add_field(name='Endpoints', value="```" +
                         self.image[0] + "```", inline=True)
         embed.add_field(name='How to use?', value=self.image[1], inline=True)
+        embed.add_field(name="Other", value="```'animg```", inline=False)
         await ctx.send(embed=embed)
 
     @help.command(name='pl')

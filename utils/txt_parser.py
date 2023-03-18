@@ -8,9 +8,9 @@ help - Get this message.
 //
 **For image commands, use ```'help img```**
 BREAK
-waifu, neko, shinobu, megumin, bully, cuddle, cry, hug, awoo, kiss, lick, pat, smug, bonk, yeet, blush, smile, wave, highfive, handhold, nom, bite, glomp, slap, kill, kick, happy, wink, poke, dance, cringe, kitsune, punch
+waifu, neko, shinobu, megumin, bully, cuddle, cry, hug, awoo, kiss, lick, pat, smug, bonk, yeet, blush, smile, wave, highfive, handhold, nom, bite, glomp, slap, kill, kick, happy, wink, poke, dance, cringe
 //
-```'img <endpoint>```
+```'anirx <endpoint>```
 BREAK
 join - Joins a VC.
 leave - Leaves a VC.
