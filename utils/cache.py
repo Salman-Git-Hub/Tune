@@ -1,8 +1,8 @@
 import os
 import shutil
 
-
 count = 0
+
 
 def remove_pycache(path):
     global count
@@ -16,9 +16,8 @@ def remove_pycache(path):
             count += remove_pycache(t_path)
             continue
     return 0
-        
 
-remove_pycache(os.getcwd())
 
-print(f"Removed cached files: {count}\n")
-
+def clear_cache():
+    remove_pycache(os.getcwd())
+    return count
