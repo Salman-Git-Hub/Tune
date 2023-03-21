@@ -553,7 +553,7 @@ class Music(commands.Cog):
         vc.current.source.volume = vc._volume
         vc.voice.play(vc.current.source, after=vc.play_next_song)
         vc.end = vc.current.source.int_duration
-        vc.start = datetime.datetime.now()
+        vc.start = start_t
         embed = discord.Embed(
             title=f"Skipped {t} sec(s)!",
             color=discord.Color.magenta()
@@ -618,7 +618,7 @@ class Music(commands.Cog):
             except AttributeError:
                 queue += '`{0}.` **{1}**\n'.format(i + 1, song.name)
 
-        embed = (discord.Embed(description='**{} tracks:**\n\n{}'.format(len(ctx.voice_state.songs), queue))
+        embed = (discord.Embed(title="Queue", description='**{} tracks:**\n\n{}'.format(len(ctx.voice_state.songs), queue))
                  .set_footer(text='Viewing page {}/{}'.format(page, pages)))
         await ctx.send(embed=embed)
 
@@ -922,6 +922,25 @@ class Music(commands.Cog):
                 await ctx.send(embed=embed)
                 self.bot.loop.create_task(self.add_to_queue(ctx, items, playlist))
             return
+
+    @commands.command(name='search', aliases=['s'])
+    async def _search(self, ctx: Context, * query: str):
+        if query is None or len(query) == 0:
+            return await ctx.send("Search query required!", delete_after=5)
+
+        data = search_video(query)
+        search_result = ''
+        for i, item in enumerate(data, start=1):
+            _id = item[1]
+            url = _id if "://" in _id else f"https://youtu.be/{_id}"
+            val = f"**{i}. [{item[0]}]({url})**"
+            search_result += val + "\n\n"
+
+        return await ctx.send(embed=discord.Embed(
+            title="Search results!",
+            description=search_result,
+            color=discord.Color.magenta()
+        ))
 
     # @commands.command(name='f', aliases=['filter'])
     # async def _filter(self, ctx: Context, *, filter: int):
