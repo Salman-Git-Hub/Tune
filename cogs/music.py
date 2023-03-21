@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import itertools
 import json
+import logging
 import math
 import random
 from sqlite3 import OperationalError
@@ -145,9 +146,9 @@ class SongItem:
         self.id = id
 
     def __str__(self):
-        return '**{0.value}**'.format(self)
+        return '**{0.name}**'.format(self)
 
-    async def create_song(self):
+    async def create_song(self) -> Song:
         source = await YTDLSource.create_source(self.ctx, self.name, time=self.time)
         return Song(source)
 
@@ -245,8 +246,7 @@ class VoiceState:
     def play_next_song(self, error=None):
 
         if error:
-            print(error)
-            raise VoiceError(str(error))
+            logging.error(error)
 
         self.next.set()
 
@@ -650,6 +650,12 @@ class Music(commands.Cog):
                 color=discord.Color.magenta()
             )
             return await ctx.send(embed=embed)
+
+        if len(ctx.voice_state.songs) < (index - 1):
+            return await ctx.send(embed=discord.Embed(
+                title="Index out of range!",
+                color=discord.Color.magenta()
+            ))
 
         ctx.voice_state.songs.remove(index - 1)
         await ctx.message.add_reaction('✅')
