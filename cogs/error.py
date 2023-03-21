@@ -66,8 +66,8 @@ class ErrorCog(commands.Cog):
             await ctx.message.delete()
             return await ctx.send(embed=embed, delete_after=10)
 
-        logging.error(name)
+        logging.error(error)
 
 
-async def setup(lient):
-    await lient.add_cog(ErrorCog(lient))
+async def setup(bot):
+    await bot.add_cog(ErrorCog(bot))
