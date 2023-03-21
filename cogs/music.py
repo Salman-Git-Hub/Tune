@@ -193,6 +193,8 @@ class VoiceState:
 
         self.audio_player = bot.loop.create_task(self.audio_player_task())
 
+        self.song_item = None
+
     def __del__(self):
         self.audio_player.cancel()
 
@@ -227,14 +229,16 @@ class VoiceState:
                 # reasons.
                 try:
                     async with timeout(60):  # 1(3) minutes
-                        song = await self.songs.get()
-                        self.current = await song.create_song()
+                        self.song_item = await self.songs.get()
+                        self.current = await self.song_item.create_song()
                 except asyncio.TimeoutError:
 
                     self.bot.loop.create_task(self.stop())
                     return
             else:
-                self.current = await self.current.create_song()
+                await self.songs.put(self.song_item)
+                self.song_item = await self.songs.get()
+                self.current = await self.song_item.create_song()
             self.current.source.volume = self._volume
             self.voice.play(self.current.source, after=self.play_next_song)
             self.end = self.current.source.int_duration
