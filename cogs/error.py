@@ -1,3 +1,4 @@
+import logging
 import discord
 from discord.ext import commands
 from discord.ext.commands import CommandNotFound, MissingPermissions, \
@@ -65,7 +66,7 @@ class ErrorCog(commands.Cog):
             await ctx.message.delete()
             return await ctx.send(embed=embed, delete_after=10)
 
-        print(error)
+        logging.error(name)
 
 
 async def setup(lient):
