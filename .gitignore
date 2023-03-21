@@ -4,3 +4,4 @@
 .python-version
 discord.log
 db/*/*.db
+**/__pycache__/
