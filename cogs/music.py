@@ -149,7 +149,10 @@ class SongItem:
         return '**{0.name}**'.format(self)
 
     async def create_song(self) -> Song:
-        source = await YTDLSource.create_source(self.ctx, self.name, time=self.time)
+        if self.id is None:
+            source = await YTDLSource.create_source(self.ctx, self.name, time=self.time)
+        else:
+            source = await YTDLSource.create_source(self.ctx, self.id, time=self.time)
         return Song(source)
 
 
