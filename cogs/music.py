@@ -10,8 +10,6 @@ import discord
 import yt_dlp
 from async_timeout import timeout
 from discord.ext import commands
-
-import pafy
 from db.music import *
 from utils.playlist import get_playlist
 from utils.search import search_video
@@ -89,16 +87,21 @@ class YTDLSource(discord.PCMVolumeTransformer):
     async def create_source(cls, ctx: commands.Context, search: str, *,
                             time: int = 0):
 
-        with cls.ytdlp as ytdl:
-            info = ytdl.sanitize_info(ytdl.extract_info(search, download=False))
-
-        if 'entries' in info:
-            info = info['entries'][0]
+        info = cls.extract_data(search)
 
         opt = cls.FFMPEG_OPTIONS
         opt['options'] = f'-vn -ss {time}'
         # opt['options'] = f'-vn -ss {time} -af "{filter}" -b:a 320k'
         return cls(ctx, discord.FFmpegPCMAudio(source=info['url'], **opt), data=info)
+
+    @staticmethod
+    def extract_data(search: str) -> dict:
+        with YTDLSource.ytdlp as ytdl:
+            data = ytdl.sanitize_info(ytdl.extract_info(search, download=False))
+
+        if 'entries' in data:
+            data = data['entries'][0]
+        return data
 
     @staticmethod
     def parse_duration(duration: int):
@@ -807,8 +810,8 @@ class Music(commands.Cog):
                     )
                     await ctx.send(embed=embed)
                     return
-                video = pafy.new(query)
-                data = [video.title, video.videoid]
+                video = YTDLSource.extract_data(query)
+                data = [video['title'], video['webpage_url']]
             else:
                 data = search_video(query)[0]
             insert_playlist_data(ctx.guild.id, name, data)
