@@ -50,3 +50,4 @@ async def load_ext():
 print("\nStarting Tune!")
 asyncio.run(load_ext())
 client.run(TOKEN, log_handler=handler, log_level=logging.DEBUG)
+clear_cache()
