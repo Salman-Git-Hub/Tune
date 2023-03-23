@@ -1,20 +1,20 @@
-import sys
-
 import discord
 from discord.ext import commands
 
-from utils.txt_parser import get_help_list
-
-sys.path.append("utils")
 
 
 class HelpCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.help_list = get_help_list()
-        self.text = self.help_list[0]
-        self.image = self.help_list[1]
-        self.voice = self.help_list[2]
+        self.load_help_file()
+
+    def load_help_file(self):
+        with open("extra/help.txt", 'r') as file:
+            data = file.read()
+        txt_help, image_help, voice_help = data.split("BREAK")
+        self.image = image_help.split("//")
+        self.text = txt_help.split("//")
+        self.voice = voice_help.split("//")
 
 
     @commands.group(name='help', invoke_without_command=True)
