@@ -536,7 +536,7 @@ class Music(commands.Cog):
             del self.voice_states[ctx.guild.id]
 
     @commands.command(name='seek')
-    async def _seek(self, ctx: Context, t: int):
+    async def _seek(self, ctx: Context, pos: int):
         """Seeks to the give position"""
 
         if not ctx.voice_state.voice.is_playing:
@@ -554,14 +554,14 @@ class Music(commands.Cog):
         now = datetime.datetime.now()
         elapsed = now - start_t
         played_t = elapsed.total_seconds()
-        new_t = played_t + t
+        new_t = played_t + poss
         vc.current.source = await YTDLSource.create_source(vc._ctx, vc.current.source.url, time=new_t)
         vc.current.source.volume = vc._volume
         vc.voice.play(vc.current.source, after=vc.play_next_song)
         vc.end = vc.current.source.int_duration
         vc.start = start_t
         embed = discord.Embed(
-            title=f"Skipped {t} sec(s)!",
+            title=f"Skipped {pos} sec(s)!",
             color=discord.Color.magenta()
         )
         return await ctx.send(embed=embed)
@@ -715,7 +715,7 @@ class Music(commands.Cog):
             if not ctx.voice_state.voice.is_playing:
                 await self.bot.loop.create_task(ctx.voice_state.audio_player_task())
         except yt_dlp.DownloadError as e:
-            # await ctx.send('An error occurred while processing this request: ```{}```'.format(str(e)))
+            logging.error(e)
             await self.add_to_queue(ctx, items[i + 1:], name)
 
     @commands.command(name='pl', aliases=['playlist'])
@@ -932,6 +932,7 @@ class Music(commands.Cog):
     @commands.command(name='search', aliases=['s'])
     async def _search(self, ctx: Context, * query: str):
         if query is None or len(query) == 0:
+            await ctx.message.delete()
             return await ctx.send("Search query required!", delete_after=5)
 
         data = search_video(query)
@@ -947,32 +948,7 @@ class Music(commands.Cog):
             description=search_result,
             color=discord.Color.magenta()
         ))
-
-    # @commands.command(name='f', aliases=['filter'])
-    # async def _filter(self, ctx: Context, *, filter: int):
-    #     t = datetime.datetime.now() - ctx.voice_state.start
-    #     e = ctx.voice_state.end
-    #     if t.seconds < e:
-    #         s = int(t.seconds)
-    #         if filter != 10 and filter < 10:
-    #             f = YTDLSource.FILTERS[filter]
-    #             try:
-    #                 source = await YTDLSource.create_source(ctx, ctx.voice_state.current.source.url, time=s, filter=f)
-    #                 ctx.voice_state.voice.source = source
-
-    #             except Exception as e:
-    #                 print(e)
-    #             return await ctx.send("Adding filter!")
-    #         else:
-    #             source = await YTDLSource.create_source(ctx, ctx.voice_state.current.source.url, time=s)
-    #     else:
-    #         embed = discord.Embed(
-    #             title='Not playing any music right now...',
-    #             description="",
-    #             color=discord.Color.magenta()
-    #         )
-    #         await ctx.send(embed=embed)
-
+    
     @commands.command(name='play', aliases=['p'])
     async def _play(self, ctx: Context, *, search: str):
         """Plays a song.
@@ -986,11 +962,6 @@ class Music(commands.Cog):
             await ctx.invoke(self._join)
 
         async with ctx.typing():
-            # try:
-            #     source = await YTDLSource.create_source(ctx, search, loop=self.bot.loop)
-            # except YTDLError as e:
-            #     await ctx.send('An error occurred while processing this request: {}'.format(str(e)))
-            # else:
             song = SongItem(ctx, search)
 
             await ctx.voice_state.songs.put(song)
