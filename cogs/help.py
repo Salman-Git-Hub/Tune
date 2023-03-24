@@ -6,6 +6,7 @@ from discord.ext import commands
 class HelpCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.icon = 'https://img.icons8.com/ios-glyphs/60/undefined/help.png'
         self.load_help_file()
 
     def load_help_file(self):
@@ -25,12 +26,30 @@ class HelpCog(commands.Cog):
             color=discord.Color.purple()
         )
         embed.set_thumbnail(
-            url='https://img.icons8.com/ios-glyphs/60/undefined/help.png')
+            url=self.icon)
         embed.add_field(name='Prefix', value="```'```", inline=False)
-        embed.add_field(name='Text Channel', value="```" +
-                        self.text[0] + "```" + self.text[1], inline=True)
-        embed.add_field(name='Voice Channel', value="```" +
-                        self.voice[0] + "```" + self.voice[1], inline=True)
+        embed.add_field(name='Text Channel', value="```" + self.text[0] + "```" + self.text[1], inline=True)
+        embed.add_field(name='Voice Channel', value="```" + self.voice[0] + "```" + self.voice[1], inline=True)
+        await ctx.send(embed=embed)
+
+    @help.command(name='text', aliases=['tc'])
+    async def text_commands(self, ctx: commands.Context):
+        embed = discord.Embed(
+            title = "Text Channel Commands",
+            color=discord.Color.dark_blue()
+        )
+        embed.set_thumbnail(url=self.icon)
+        embed.add_field(name='', value="```" + self.text[0] + "```" + self.text[1])
+        await ctx.send(embed=embed)
+
+    @help.command(name='voice', aliases=['vc'])
+    async def voice_commands(self, ctx: commands.Context):
+        embed = discord.Embed(
+            title = "Voice Channel Commands",
+            color=discord.Color.dark_blue()
+        )
+        embed.set_thumbnail(url=self.icon)
+        embed.add_field(name='', value="```" + self.voice[0] + "```" + self.voice[1])
         await ctx.send(embed=embed)
 
     @help.command(name='img')
@@ -41,12 +60,11 @@ class HelpCog(commands.Cog):
             color=discord.Color.dark_blue()
         )
         embed.set_thumbnail(
-            url='https://img.icons8.com/ios-glyphs/60/undefined/help.png')
+            url=self.icon)
         embed.add_field(name="Anime reaction", value="", inline=False)
-        embed.add_field(name='Endpoints', value="```" +
-                        self.image[0] + "```", inline=True)
-        embed.add_field(name='How to use?', value=self.image[1], inline=True)
-        embed.add_field(name="Other", value="```'animg```", inline=False)
+        embed.add_field(name='Endpoints', value="```" + self.image[0] + "```", inline=True)
+        embed.add_field(name='How to use?', value="**" + self.image[1] + "**", inline=True)
+        embed.add_field(name="Other", value="**'animg**", inline=False)
         await ctx.send(embed=embed)
 
     @help.command(name='pl')
@@ -57,18 +75,16 @@ class HelpCog(commands.Cog):
             color=discord.Color.dark_blue()
         )
         embed.set_thumbnail(
-            url='https://img.icons8.com/ios-glyphs/60/undefined/help.png')
-        pl = """
-```
-pl create <playlist-name> - Creates an empty playlist.
-pl <playlist-url/playlist-name> - Adds the playlist to the queue.
-pl add <url/name> <playlist-name> - Adds an item to the playlist. Creates a new one if it does not exists.
-pl remove <id> <playlist-name> - Remove an item from playlist.
+            url=self.icon)
+        pl = """**
+pl create `playlist name` - Creates an new playlist.
+pl `playlist url | playlist name` - Adds the playlist to the queue.
+pl add `url | name` `playlist name` - Adds an item to the playlist. Creates a new one if it does not exists.
+pl remove `id` `playlist name` - Remove an item from playlist.
 pl server - Get a list of server's playlist.
-pl list <playlist-name> - Lists the items in a playlist.```
+pl list `playlist name` - Lists the items in a playlist.**
         """
         embed.add_field(name='Usage', value=pl)
-        embed.set_footer(text="Note: < > are not not needed when using the actual command!")
         await ctx.send(embed=embed)
 
     @help.command(name="ping")
@@ -79,8 +95,8 @@ pl list <playlist-name> - Lists the items in a playlist.```
             color=discord.Color.dark_blue()
         )
         embed.set_thumbnail(
-            url="https://img.icons8.com/ios-glyphs/60/undefined/help.png")
-        embed.add_field(name="How to use?", value="```'ping```")
+            url=self.icon)
+        embed.add_field(name="How to use?", value="**'ping**")
         await ctx.send(embed=embed)
 
     @help.command(name="info")
@@ -91,9 +107,9 @@ pl list <playlist-name> - Lists the items in a playlist.```
             color=discord.Color.dark_blue()
         )
         embed.set_thumbnail(
-            url="https://img.icons8.com/ios-glyphs/60/undefined/help.png")
+            url=self.icon)
         embed.add_field(name="How to use?",
-                        value="```'info <mention/user-id>```")
+                        value="**'info `user```**")
         await ctx.send(embed=embed)
 
     @help.command(name="server")
@@ -104,8 +120,8 @@ pl list <playlist-name> - Lists the items in a playlist.```
             color=discord.Color.dark_blue()
         )
         embed.set_thumbnail(
-            url="https://img.icons8.com/ios-glyphs/60/undefined/help.png")
-        embed.add_field(name="How to use?", value="```'server```")
+            url=self.icon)
+        embed.add_field(name="How to use?", value="**'server**")
         await ctx.send(embed=embed)
 
     @help.command(name="join")
@@ -116,23 +132,23 @@ pl list <playlist-name> - Lists the items in a playlist.```
             color=discord.Color.dark_blue()
         )
         embed.set_thumbnail(
-            url="https://img.icons8.com/ios-glyphs/60/undefined/help.png")
-        embed.add_field(name="How to use?", value="```'join```")
+            url=self.icon)
+        embed.add_field(name="How to use?", value="**'join**")
         await ctx.send(embed=embed)
 
     @help.command(name="leave")
     async def _leave_(self, ctx: commands.Context):
         embed = discord.Embed(
             title="Leave",
-            description="Leaves a Voice Channel.",
+            description="Leaves the Voice Channel.",
             color=discord.Color.dark_blue()
         )
         embed.set_thumbnail(
-            url="https://img.icons8.com/ios-glyphs/60/undefined/help.png")
-        embed.add_field(name="How to use?", value="```'leave```")
+            url=self.icon)
+        embed.add_field(name="How to use?", value="**'leave**")
         await ctx.send(embed=embed)
 
-    @help.command(name="volume", aliases=['vol'])
+    @help.command(name="volume", aliases=['vol', 'v'])
     async def _volume_(self, ctx: commands.Context):
         embed = discord.Embed(
             title="Volume",
@@ -140,8 +156,9 @@ pl list <playlist-name> - Lists the items in a playlist.```
             color=discord.Color.dark_blue()
         )
         embed.set_thumbnail(
-            url="https://img.icons8.com/ios-glyphs/60/undefined/help.png")
-        embed.add_field(name="How to use?", value="```'volume <1-100>```")
+            url=self.icon)
+        embed.add_field(name="How to use?", value="**'volume - Gets player volume\n" +
+                                                  "'volume `value`**")
         await ctx.send(embed=embed)
 
     @help.command(name="np", aliases=['current', 'nowplaying'])
@@ -152,9 +169,9 @@ pl list <playlist-name> - Lists the items in a playlist.```
             color=discord.Color.dark_blue()
         )
         embed.set_thumbnail(
-            url="https://img.icons8.com/ios-glyphs/60/undefined/help.png")
+            url=self.icon)
         embed.add_field(name="How to use?",
-                        value="```'nowplaying or 'np or 'current```")
+                        value="**'nowplaying or 'np or 'current**")
         await ctx.send(embed=embed)
 
     @help.command(name="pause")
@@ -165,8 +182,8 @@ pl list <playlist-name> - Lists the items in a playlist.```
             color=discord.Color.dark_blue()
         )
         embed.set_thumbnail(
-            url="https://img.icons8.com/ios-glyphs/60/undefined/help.png")
-        embed.add_field(name="How to use?", value="```'pause```")
+            url=self.icon)
+        embed.add_field(name="How to use?", value="**'pause**")
         await ctx.send(embed=embed)
 
     @help.command(name="resume")
@@ -177,8 +194,8 @@ pl list <playlist-name> - Lists the items in a playlist.```
             color=discord.Color.dark_blue()
         )
         embed.set_thumbnail(
-            url="https://img.icons8.com/ios-glyphs/60/undefined/help.png")
-        embed.add_field(name="How to use?", value="```'resume```")
+            url=self.icon)
+        embed.add_field(name="How to use?", value="**'resume**")
         await ctx.send(embed=embed)
 
     @help.command(name="play")
@@ -189,8 +206,8 @@ pl list <playlist-name> - Lists the items in a playlist.```
             color=discord.Color.dark_blue()
         )
         embed.set_thumbnail(
-            url="https://img.icons8.com/ios-glyphs/60/undefined/help.png")
-        embed.add_field(name="How to use?", value="```'play <url>```")
+            url=self.icon)
+        embed.add_field(name="How to use?", value="**'play `name | url`**")
         await ctx.send(embed=embed)
 
     @help.command(name="skip")
@@ -201,8 +218,8 @@ pl list <playlist-name> - Lists the items in a playlist.```
             color=discord.Color.dark_blue()
         )
         embed.set_thumbnail(
-            url="https://img.icons8.com/ios-glyphs/60/undefined/help.png")
-        embed.add_field(name="How to use?", value="```'skip```")
+            url=self.icon)
+        embed.add_field(name="How to use?", value="**'skip**")
         await ctx.send(embed=embed)
 
     @help.command(name="queue")
@@ -213,8 +230,8 @@ pl list <playlist-name> - Lists the items in a playlist.```
             color=discord.Color.dark_blue()
         )
         embed.set_thumbnail(
-            url="https://img.icons8.com/ios-glyphs/60/undefined/help.png")
-        embed.add_field(name="How to use?", value="```'queue```")
+            url=self.icon)
+        embed.add_field(name="How to use?", value="**'queue**")
         await ctx.send(embed=embed)
 
     @help.command(name="shuffle")
@@ -225,8 +242,8 @@ pl list <playlist-name> - Lists the items in a playlist.```
             color=discord.Color.dark_blue()
         )
         embed.set_thumbnail(
-            url="https://img.icons8.com/ios-glyphs/60/undefined/help.png")
-        embed.add_field(name="How to use?", value="```'shuffle```")
+            url=self.icon)
+        embed.add_field(name="How to use?", value="**'shuffle**")
         await ctx.send(embed=embed)
 
     @help.command(name="remove")
@@ -237,20 +254,20 @@ pl list <playlist-name> - Lists the items in a playlist.```
             color=discord.Color.dark_blue()
         )
         embed.set_thumbnail(
-            url="https://img.icons8.com/ios-glyphs/60/undefined/help.png")
-        embed.add_field(name="How to use?", value="```'remove <index>```")
+            url=self.icon)
+        embed.add_field(name="How to use?", value="**'remove `index`**")
         await ctx.send(embed=embed)
 
-    # @help.command(name="slice")
-    # async def _slice_(self, ctx: commands.Context):
-    #     embed = discord.Embed(
-    #       title="Slice",
-    #       description="Slices the queue.",
-    #       color=discord.Color.dark_blue()
-    #     )
-    #     embed.set_thumbnail(url="https://img.icons8.com/ios-glyphs/60/undefined/help.png")
-    #     embed.add_field(name="How to use?", value="```'slice <start> <stop>```")
-    #     await ctx.send(embed=embed)
+    @help.command(name='seek')
+    async def _seek_(self, ctx: commands.Context):
+        embed = discord.Embed(
+            title="Seek",
+            description="Adjusts the playback position of the current song.",
+            color=discord.Color.dark_blue()
+        )
+        embed.set_thumbnail(url=self.icon)
+        embed.add_field(name="How to use?", value="**'seek `position`**")
+        await ctx.send(embed=embed)
 
     @help.error
     async def help_error(self, ctx: commands.Context, error):
