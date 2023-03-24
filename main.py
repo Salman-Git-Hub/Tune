@@ -30,7 +30,7 @@ async def shutdown(ctx: commands.Context):
     await ctx.send("Shutting down !")
     [vc.disconnect(force=True) for vc in client.voice_clients]
     await client.close()
-    print(f"Removed cache files: {clear_cache()}")
+    clear_cache()
     print("Shutting down!!")
     sys.exit(0)
 

@@ -780,7 +780,6 @@ class Music(commands.Cog):
 
         if playlist.startswith("add"):
             playlist_list = playlist.split(" ")
-            print(playlist_list)
             n = playlist_list.pop(0)
             try:
                 name = playlist_list.pop()

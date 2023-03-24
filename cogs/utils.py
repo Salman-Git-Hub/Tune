@@ -29,7 +29,6 @@ class UtilsCogs(commands.Cog):
             await self.bot.reload_extension(f"cogs.{cog}")
         except Exception as e:
             if isinstance(e, commands.ExtensionNotLoaded) or isinstance(e, commands.ExtensionNotFound):
-                print(cog)
                 await self.bot.load_extension(f"cogs.{cog}")
         await msg.add_reaction("👍")
         await msg.delete(delay=5)

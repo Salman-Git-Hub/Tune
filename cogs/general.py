@@ -31,12 +31,6 @@ class GeneralCog(commands.Cog):
             role_string = " ".join([r.mention for r in member.roles][1:])
             embed.add_field(name="Roles[{0}]".format(len(member.roles) - 1), value=role_string, inline=False)
         perm_string = ", ".join([str(p[0]).replace("_", " ").title() for p in member.guild_permissions if p[1]])
-        # boost = ctx.guild.premium_subscribers
-        # if member in boost:
-        #     val = "Yes"
-        # elif member not in boost:
-        #     val = "No"
-        # embed.add_field(name="Premium Member", value=val, inline=False)
 
         embed.add_field(name="Permissions", value=perm_string, inline=False)
         embed.set_thumbnail(url=member.avatar)
@@ -64,8 +58,6 @@ class GeneralCog(commands.Cog):
 
         roles = str(len(ctx.guild.roles))
         premium = str(ctx.guild.premium_subscription_count)
-        print(premium)
-        # icon = str(ctx.guild.icon_url)
 
         embed = discord.Embed(
             title="Server Information",
@@ -86,27 +78,6 @@ class GeneralCog(commands.Cog):
         embed.add_field(name="Roles", value=roles, inline=False)
 
         return await ctx.send(embed=embed)
-
-    """@commands.command(name="boosters", pass_context=True)
-    async def premium_members(self, ctx):
-      members = ctx.guild.premium_subscribers
-  
-      print(members)
-      i = len(members)
-      print(i)
-      if not members:
-        await ctx.send("None have boosted the server!")
-      else:
-        for i in members:
-          newmem = i
-          embed = discord.Embed(
-          title="**Boosters**",
-          description="",
-          color=discord.Color.blurple()
-          )
-          embed.add_field(name="", value=newmem, inline=False)
-          await ctx.send(embed=embed)
-      """
 
 
 async def setup(lient):
