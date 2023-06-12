@@ -11,10 +11,10 @@ class UtilsCogs(commands.Cog):
     async def load_ext(self, extension: list[str]):
         for ext in extension:
             try:
-                await self.bot.reload_extension(f"cogs.{cog}")
+                await self.bot.reload_extension(f"cogs.{ext}")
             except Exception as e:
                 if isinstance(e, commands.ExtensionNotLoaded) or isinstance(e, commands.ExtensionNotFound):
-                    await self.bot.load_extension(f"cogs.{cog}")
+                    await self.bot.load_extension(f"cogs.{ext}")
 
     @commands.is_owner()
     @commands.command(name='reload')
