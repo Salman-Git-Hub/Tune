@@ -1,5 +1,6 @@
 import asyncio
-import datetime
+from timeit import default_timer as timer
+from StringProgressBar import progressBar
 import itertools
 import json
 import logging
@@ -10,6 +11,7 @@ import discord
 import yt_dlp
 from async_timeout import timeout
 from discord.ext import commands
+from discord.ext.commands import Parameter
 from db.music import *
 from utils.playlist import get_playlist
 from utils.search import search_video
@@ -38,7 +40,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
         'logtostderr': False,
         'quiet': True,
         'no_warnings': True,
-        'default_search': 'ytsearch',
+        'default_search': 'auto',
         'source_address': '0.0.0.0',
     }
 
@@ -86,22 +88,15 @@ class YTDLSource(discord.PCMVolumeTransformer):
     @classmethod
     async def create_source(cls, ctx: commands.Context, search: str, *,
                             time: int = 0):
-
-        info = cls.extract_data(search)
+        with YTDLSource.ytdlp as ytdl:
+            data = ytdl.sanitize_info(ytdl.extract_info(search, download=False))
+        if 'entries' in data:
+            data = data['entries'][0]
 
         opt = cls.FFMPEG_OPTIONS
         opt['options'] = f'-vn -ss {time}'
         # opt['options'] = f'-vn -ss {time} -af "{filter}" -b:a 320k'
-        return cls(ctx, discord.FFmpegPCMAudio(source=info['url'], **opt), data=info)
-
-    @staticmethod
-    def extract_data(search: str) -> dict:
-        with YTDLSource.ytdlp as ytdl:
-            data = ytdl.sanitize_info(ytdl.extract_info(search, download=False))
-
-        if 'entries' in data:
-            data = data['entries'][0]
-        return data
+        return cls(ctx, discord.FFmpegPCMAudio(source=data['url'], **opt), data=data)
 
     @staticmethod
     def parse_duration(duration: int):
@@ -141,24 +136,6 @@ class Song:
         return embed
 
 
-class SongItem:
-    def __init__(self, ctx, value, id: str = None, time: int = 0):
-        self.time = time
-        self.ctx = ctx
-        self.name = value
-        self.id = id
-
-    def __str__(self):
-        return '**{0.name}**'.format(self)
-
-    async def create_song(self) -> Song:
-        if self.id is None:
-            source = await YTDLSource.create_source(self.ctx, self.name, time=self.time)
-        else:
-            source = await YTDLSource.create_source(self.ctx, self.id, time=self.time)
-        return Song(source)
-
-
 class SongQueue(asyncio.Queue):
     def __getitem__(self, item):
         if isinstance(item, slice):
@@ -188,8 +165,7 @@ class VoiceState:
         self._ctx = ctx
 
         self.current = None
-        self.start = datetime.datetime.now()
-        self.end = 0
+        self.start = None
         self.voice = None
         self.next = asyncio.Event()
         self.songs = SongQueue()
@@ -235,22 +211,19 @@ class VoiceState:
                 # reasons.
                 try:
                     async with timeout(60):  # 1(3) minutes
-                        self.song_item = await self.songs.get()
-                        self.current = await self.song_item.create_song()
+                        self.current = await self.songs.get()
                 except asyncio.TimeoutError:
-
                     self.bot.loop.create_task(self.stop())
                     return
             else:
-                await self.songs.put(self.song_item)
-                self.song_item = await self.songs.get()
-                self.current = await self.song_item.create_song()
+                # await self.songs.put(self.current)
+                o_src = await YTDLSource.create_source(self._ctx, self.current.url)
+                await self.songs.put(o_src)
+                self.current = await self.songs.get()
             self.current.source.volume = self._volume
             self.voice.play(self.current.source, after=self.play_next_song)
-            self.end = self.current.source.int_duration
-            self.start = datetime.datetime.now()
+            self.start = timer()
             await self.current.source.channel.send(embed=self.current.create_embed())
-
             await self.next.wait()
 
     def play_next_song(self, error=None):
@@ -423,9 +396,9 @@ class Music(commands.Cog):
     @commands.command(name='np', aliases=['current', 'playing', 'currentsong', 'nowplaying'])
     async def _now(self, ctx: Context):
         """Displays the currently playing song."""
+        curr = timer() - ctx.voice_state.start
         vc = ctx.voice_state
-        diff = (datetime.datetime.now() - vc.start).total_seconds()
-        if not ctx.voice_state.voice.is_playing:
+        if not vc.voice.is_playing:
             embed = discord.Embed(
                 title="I am playing nothing!",
                 description="",
@@ -433,13 +406,8 @@ class Music(commands.Cog):
             )
             await ctx.send(embed=embed)
         else:
-            f = "🟪 "
-            r = "🟥 "
-            played = YTDLSource.parse_duration(diff)
-            prt = round((diff / vc.end) * 100, -1) / 10
-            com = f * int(prt)
-            rem = r * int(10 - prt)
-
+            bar_data = progressBar.splitBar(100, round((curr / vc.start) * 100), size=10)
+            played = YTDLSource.parse_duration(curr)
             embed = discord.Embed(
                 title="Now Playing!",
                 description='[{0.source.title}]({0.source.url})'.format(vc.current),
@@ -447,7 +415,7 @@ class Music(commands.Cog):
             )
             embed.add_field(name='Duration', value=vc.current.source.duration, inline=False)
             embed.add_field(name="Played", value=played, inline=False)
-            embed.add_field(name="", value=com + rem, inline=False)
+            embed.add_field(name="", value=bar_data[0], inline=False)
             embed.add_field(name='Requested by', value=vc.current.requester.mention, inline=False)
             embed.add_field(name='Uploader', value='[{0.source.uploader}]({0.source.uploader_url})'.format(vc.current),
                             inline=False)
@@ -547,21 +515,22 @@ class Music(commands.Cog):
             )
             await ctx.send(embed=embed)
             return
-
-        vc = self.get_voice_state(ctx)
+        if pos is None or pos == 0:
+            raise commands.MissingRequiredArgument(param=Parameter('pos', int))
+        vc = ctx.voice_state
+        if pos == -1:
+            start_time = 0
+        else:
+            elapsed = timer() - vc.start
+            start_time = elapsed + pos
+        vc.start = timer()
+        vc.current.source = await YTDLSource.create_source(ctx, vc.current.source.url, time=start_time)
         vc.voice.pause()
-        start_t = vc.start
-        now = datetime.datetime.now()
-        elapsed = now - start_t
-        played_t = elapsed.total_seconds()
-        new_t = played_t + poss
-        vc.current.source = await YTDLSource.create_source(vc._ctx, vc.current.source.url, time=new_t)
-        vc.current.source.volume = vc._volume
+        vc.current.source.volume = vc.volume
         vc.voice.play(vc.current.source, after=vc.play_next_song)
         vc.end = vc.current.source.int_duration
-        vc.start = start_t
         embed = discord.Embed(
-            title=f"Skipped {pos} sec(s)!",
+            title=f"Skipped {pos} sec(s)!" if pos > 0 else "Restarting the song!",
             color=discord.Color.magenta()
         )
         return await ctx.send(embed=embed)
@@ -613,16 +582,11 @@ class Music(commands.Cog):
 
         queue = ''
         for i, song in enumerate(ctx.voice_state.songs[start:end], start=start):
-            try:
-                name = song.name
-                _id = song.id
-                if _id is None:
-                    raise AttributeError
-                if "://" not in _id:
-                    _id = f"https://youtu.be/{_id}"
-                queue += '`{0}.` [**{1}**]({2})\n'.format(i + 1, name, _id)
-            except AttributeError:
-                queue += '`{0}.` **{1}**\n'.format(i + 1, song.name)
+            name = song.source.title
+            _id = song.source.url
+            if "://" not in _id:
+                _id = f"https://youtu.be/{_id}"
+            queue += '`{0}.` [**{1}**]({2})\n'.format(i + 1, name, _id)
 
         embed = (discord.Embed(title="Queue", description='**{} tracks:**\n\n{}'.format(len(ctx.voice_state.songs), queue))
                  .set_footer(text='Viewing page {}/{}'.format(page, pages)))
@@ -698,14 +662,14 @@ class Music(commands.Cog):
             for i, video in enumerate(items):
                 try:
                     # from online playlist, keys -> title, id
-                    video_name = video.get("title")
+                    # video_name = video.get("title")
                     video_id = video.get("id")
                 except AttributeError:
                     # from local database, values -> (title, id, index)
-                    video_name = video[0]
+                    # video_name = video[0]
                     video_id = video[1]
-                song_item = SongItem(ctx, video_name, video_id)
-                await ctx.voice_state.songs.put(song_item)
+                song = await YTDLSource.create_source(ctx, video_id)
+                await ctx.voice_state.songs.put(song)
             new_embed = discord.Embed(
                 title=f'Added playlist {name if not name is None else ""} to the queue!',
                 description='',
@@ -961,12 +925,13 @@ class Music(commands.Cog):
             await ctx.invoke(self._join)
 
         async with ctx.typing():
-            song = SongItem(ctx, search)
+            source = await YTDLSource.create_source(ctx, search)
+            song = Song(source)
 
             await ctx.voice_state.songs.put(song)
             embed = discord.Embed(
-                title='Enqueued {}'.format(str(song)),
-                description="",
+                title='Enqueued!',
+                description='[{0.source.title}]({0.source.url})'.format(song),
                 color=discord.Color.magenta()
             )
             await ctx.send(embed=embed)
