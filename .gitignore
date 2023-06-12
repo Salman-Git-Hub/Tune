@@ -1,7 +1,7 @@
-/.idea/
+.idea/
 .env
-/venv/
+venv/
 .python-version
 discord.log
-db/*/*.db
-**/__pycache__/
+*.db
+__pycache__/
