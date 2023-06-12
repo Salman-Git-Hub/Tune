@@ -11,7 +11,6 @@ from utils.env import TOKEN
 client = commands.Bot(command_prefix="'",
                       help_command=None,
                       intents=discord.Intents.all())
-
 logger = logging.getLogger("discord")
 logger.propagate = False
 logger.setLevel(logging.DEBUG)
@@ -25,6 +24,11 @@ handler = logging.handlers.RotatingFileHandler(
 dt_fmt = '%Y-%m-%d %H:%M:%S'
 formatter = logging.Formatter('[{asctime}] [{levelname:<8}] {name}: {message}', dt_fmt, style='{')
 logger.addHandler(handler)
+
+try:
+    os.mkdir("tmp")
+except FileExistsError:
+    pass
 
 
 # on ready
