@@ -1,12 +1,12 @@
 import asyncio
 import logging
 import os
-import sys
 import time
 import discord
 from discord.ext import commands
 from utils.cache import clear_cache
 from utils.env import TOKEN
+
 
 client = commands.Bot(command_prefix="'",
                       help_command=None,
@@ -21,18 +21,6 @@ async def on_ready():
     activity = discord.Activity(type=discord.ActivityType.listening, name="Tune")
     await client.change_presence(status=discord.Status.online, activity=activity)
     print("Bot is ready\n" + " " * 50)
-
-
-@commands.is_owner()
-@client.command(name='shutdown', aliases=['close'])
-async def shutdown(ctx: commands.Context):
-    await ctx.message.delete()
-    await ctx.send("Shutting down !")
-    [vc.disconnect(force=True) for vc in client.voice_clients]
-    await client.close()
-    clear_cache()
-    print("Shutting down!!")
-    sys.exit(0)
 
 
 # Loading cogs
