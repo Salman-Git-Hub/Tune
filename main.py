@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import logging.handlers
 import os
 import time
 import discord
@@ -7,11 +8,23 @@ from discord.ext import commands
 from utils.cache import clear_cache
 from utils.env import TOKEN
 
-
 client = commands.Bot(command_prefix="'",
                       help_command=None,
                       intents=discord.Intents.all())
-handler = logging.FileHandler("discord.log", 'w', 'utf-8')
+
+logger = logging.getLogger("discord")
+logger.propagate = False
+logger.setLevel(logging.DEBUG)
+logging.getLogger('discord.http').setLevel(logging.INFO)
+handler = logging.handlers.RotatingFileHandler(
+    filename='discord.log',
+    encoding='utf-8',
+    maxBytes=10 * 1024 * 1024,  # 10 MiB
+    backupCount=2
+)
+dt_fmt = '%Y-%m-%d %H:%M:%S'
+formatter = logging.Formatter('[{asctime}] [{levelname:<8}] {name}: {message}', dt_fmt, style='{')
+logger.addHandler(handler)
 
 
 # on ready
@@ -37,6 +50,6 @@ async def load_ext():
 
 print("\nStarting Tune!")
 asyncio.run(load_ext())
-client.run(TOKEN, log_handler=handler, log_level=logging.DEBUG)
+client.run(TOKEN, log_handler=None)
 print("Shutting down!!")
 clear_cache()
