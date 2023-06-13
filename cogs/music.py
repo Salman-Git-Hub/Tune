@@ -13,10 +13,11 @@ from async_timeout import timeout
 from discord.ext import commands
 from discord.ext.commands import Parameter
 from db.music import *
-from utils.playlist import get_playlist
-from utils.search import search_video
+from api.playlist import get_playlist
+from api.search import search_video
 
 bot = commands.Bot(command_prefix="'", help_command=None, intents=discord.Intents.all())
+logger = logging.getLogger("discord")
 
 
 class VoiceError(Exception):
@@ -25,6 +26,49 @@ class VoiceError(Exception):
 
 class YTDLError(Exception):
     pass
+
+
+class QueueButton(discord.ui.View):
+    def __init__(self, ctx: commands.Context, current: int, pages: int):
+        super().__init__(timeout=60)
+        self.ctx = ctx
+        self.current = current
+        self.pages = pages
+
+    async def on_timeout(self) -> None:
+        await self.ctx.send("Timed out!", ephemeral=True)
+        return
+
+    async def on_error(self, interaction: discord.Interaction, error, item):
+        logger.error(error)
+        await interaction.response.send_message("An error occurred!", ephemeral=True)
+        return
+
+    @discord.ui.button(label="⬅", style=discord.ButtonStyle.green)
+    async def prev_button_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.current == 1 and self.pages == 1:
+            return await interaction.response.send_message("No next page!", ephemeral=True)
+        if self.current == 1:
+            prev_page = self.pages
+        else:
+            prev_page = self.current - 1
+        embed, pages = get_queue(self.ctx, prev_page)
+        self.pages = pages
+        self.current = prev_page
+        await interaction.response.edit_message(embed=embed)
+
+    @discord.ui.button(label="➡", style=discord.ButtonStyle.green)
+    async def next_button_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.current == 1 and self.pages == 1:
+            return await interaction.response.send_message("No next page!", ephemeral=True)
+        if self.current == self.pages:
+            next_page = 1
+        else:
+            next_page = self.current + 1
+        embed, pages = get_queue(self.ctx, next_page)
+        self.pages = pages
+        self.current = next_page
+        await interaction.response.edit_message(embed=embed)
 
 
 class YTDLSource(discord.PCMVolumeTransformer):
@@ -229,7 +273,7 @@ class VoiceState:
     def play_next_song(self, error=None):
 
         if error:
-            logging.error(error)
+            logger.error(error)
 
         self.next.set()
 
@@ -278,6 +322,25 @@ async def import_playlist(ctx: commands.Context, attach: discord.Attachment):
     os.remove(f"tmp/playlist.{ctx.guild.id}.1.json")
     await ctx.send(embed=discord.Embed(title=f"Imported playlist: **{pl_name.capitalize()}**",
                                        color=discord.Color.magenta()))
+
+
+def get_queue(ctx: Context, page: int = 1):
+    items_per_page = 10
+    pages = math.ceil(len(ctx.voice_state.songs) / items_per_page)
+
+    start = (page - 1) * items_per_page
+    end = start + items_per_page
+
+    queue = ''
+    for i, song in enumerate(ctx.voice_state.songs[start:end], start=start):
+        name = song.source.title
+        _id = song.source.url
+        if "://" not in _id:
+            _id = f"https://youtu.be/{_id}"
+        queue += '`{0}.` [**{1}**]({2})\n'.format(i + 1, name, _id)
+    embed = (discord.Embed(title="Queue", description='**{} tracks:**\n\n{}'.format(len(ctx.voice_state.songs), queue))
+             .set_footer(text='Viewing page {}/{}'.format(page, pages)))
+    return embed, pages
 
 
 class Music(commands.Cog):
@@ -396,9 +459,8 @@ class Music(commands.Cog):
     @commands.command(name='np', aliases=['current', 'playing', 'currentsong', 'nowplaying'])
     async def _now(self, ctx: Context):
         """Displays the currently playing song."""
-        curr = timer() - ctx.voice_state.start
         vc = ctx.voice_state
-        if not vc.voice.is_playing:
+        if not vc.is_playing:
             embed = discord.Embed(
                 title="I am playing nothing!",
                 description="",
@@ -406,7 +468,8 @@ class Music(commands.Cog):
             )
             await ctx.send(embed=embed)
         else:
-            bar_data = progressBar.splitBar(100, round((curr / vc.start) * 100), size=10)
+            curr = timer() - vc.start
+            # bar_data = progressBar.splitBar(100, round((curr / vc.start) * 100), size=10)
             played = YTDLSource.parse_duration(curr)
             embed = discord.Embed(
                 title="Now Playing!",
@@ -415,7 +478,7 @@ class Music(commands.Cog):
             )
             embed.add_field(name='Duration', value=vc.current.source.duration, inline=False)
             embed.add_field(name="Played", value=played, inline=False)
-            embed.add_field(name="", value=bar_data[0], inline=False)
+            # embed.add_field(name="", value=bar_data[0], inline=False)
             embed.add_field(name='Requested by', value=vc.current.requester.mention, inline=False)
             embed.add_field(name='Uploader', value='[{0.source.uploader}]({0.source.uploader_url})'.format(vc.current),
                             inline=False)
@@ -518,14 +581,19 @@ class Music(commands.Cog):
         if pos is None or pos == 0:
             raise commands.MissingRequiredArgument(param=Parameter('pos', int))
         vc = ctx.voice_state
+        vc.voice.pause()
+        elapsed = timer() - vc.start
+        if elapsed > vc.current.source.int_duration:
+            return await ctx.send(embed=discord.Embed(
+                title="Song has finished!",
+                colour=discord.Color.magenta()
+            ))
         if pos == -1:
             start_time = 0
         else:
-            elapsed = timer() - vc.start
             start_time = elapsed + pos
-        vc.start = timer()
+            vc.start = vc.start - pos
         vc.current.source = await YTDLSource.create_source(ctx, vc.current.source.url, time=start_time)
-        vc.voice.pause()
         vc.current.source.volume = vc.volume
         vc.voice.play(vc.current.source, after=vc.play_next_song)
         vc.end = vc.current.source.int_duration
@@ -574,23 +642,8 @@ class Music(commands.Cog):
         if len(ctx.voice_state.songs) == 0:
             return await ctx.send('Empty queue.')
 
-        items_per_page = 10
-        pages = math.ceil(len(ctx.voice_state.songs) / items_per_page)
-
-        start = (page - 1) * items_per_page
-        end = start + items_per_page
-
-        queue = ''
-        for i, song in enumerate(ctx.voice_state.songs[start:end], start=start):
-            name = song.source.title
-            _id = song.source.url
-            if "://" not in _id:
-                _id = f"https://youtu.be/{_id}"
-            queue += '`{0}.` [**{1}**]({2})\n'.format(i + 1, name, _id)
-
-        embed = (discord.Embed(title="Queue", description='**{} tracks:**\n\n{}'.format(len(ctx.voice_state.songs), queue))
-                 .set_footer(text='Viewing page {}/{}'.format(page, pages)))
-        await ctx.send(embed=embed)
+        embed, pages = get_queue(ctx, page)
+        await ctx.send(embed=embed, view=QueueButton(ctx, page, pages))
 
     @commands.command(name='shuffle')
     async def _shuffle(self, ctx: Context):
@@ -679,7 +732,7 @@ class Music(commands.Cog):
             if not ctx.voice_state.voice.is_playing:
                 await self.bot.loop.create_task(ctx.voice_state.audio_player_task())
         except yt_dlp.DownloadError as e:
-            logging.error(e)
+            logger.error(e)
             await self.add_to_queue(ctx, items[i + 1:], name)
 
     @commands.command(name='pl', aliases=['playlist'])
