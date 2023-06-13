@@ -1,6 +1,5 @@
 import asyncio
 from timeit import default_timer as timer
-from StringProgressBar import progressBar
 import itertools
 import json
 import logging
@@ -469,7 +468,6 @@ class Music(commands.Cog):
             await ctx.send(embed=embed)
         else:
             curr = timer() - vc.start
-            # bar_data = progressBar.splitBar(100, round((curr / vc.start) * 100), size=10)
             played = YTDLSource.parse_duration(curr)
             embed = discord.Embed(
                 title="Now Playing!",
@@ -478,7 +476,6 @@ class Music(commands.Cog):
             )
             embed.add_field(name='Duration', value=vc.current.source.duration, inline=False)
             embed.add_field(name="Played", value=played, inline=False)
-            # embed.add_field(name="", value=bar_data[0], inline=False)
             embed.add_field(name='Requested by', value=vc.current.requester.mention, inline=False)
             embed.add_field(name='Uploader', value='[{0.source.uploader}]({0.source.uploader_url})'.format(vc.current),
                             inline=False)
