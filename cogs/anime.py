@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands
 
-from utils.anime_img import get_anime_image, get_api_bi_image
+from api.anime_img import get_anime_image, get_api_bi_image
 
 
 class Image:
