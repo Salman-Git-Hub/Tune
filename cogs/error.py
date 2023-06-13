@@ -2,6 +2,9 @@ import discord
 from discord.ext import commands
 from discord.ext.commands import CommandNotFound, MissingPermissions, \
             MissingRequiredArgument, BotMissingPermissions, NotOwner
+import logging
+
+logger = logging.getLogger("discord")
 
 
 class ErrorCog(commands.Cog):
@@ -64,6 +67,7 @@ class ErrorCog(commands.Cog):
             embed.set_thumbnail(url=self.img)
             await ctx.message.delete()
             return await ctx.send(embed=embed, delete_after=10)
+        logger.error(error)
 
 
 async def setup(bot):
