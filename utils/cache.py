@@ -1,11 +1,9 @@
 import os
 import shutil
 
-count = 0
-
 
 def remove_pycache(path):
-    global count
+    count = 0
     for file in os.listdir(path):
         t_path = os.path.join(path, file)
         if os.path.isdir(t_path):
@@ -15,9 +13,8 @@ def remove_pycache(path):
                 return count
             count += remove_pycache(t_path)
             continue
-    return 0
+    return count
 
 
 def clear_cache():
-    remove_pycache(os.getcwd())
-    return count
+    return remove_pycache(os.getcwd())
