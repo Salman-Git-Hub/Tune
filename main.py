@@ -3,10 +3,12 @@ import os
 import time
 import discord
 from discord.ext import commands
+from utils.logger import init_discord_logger
 from utils.cache import clear_cache
-from utils.env import TOKEN
+from utils.env import TOKEN, PREFIX
 
-client = commands.Bot(command_prefix="'",
+init_discord_logger()
+client = commands.Bot(command_prefix=PREFIX,
                       help_command=None,
                       intents=discord.Intents.all())
 
