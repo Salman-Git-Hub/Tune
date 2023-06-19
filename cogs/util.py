@@ -1,10 +1,9 @@
 import os
-
 import discord
 from discord.ext import commands
 
 
-class UtilsCogs(commands.Cog):
+class UtilCogs(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
 
@@ -42,4 +41,4 @@ class UtilsCogs(commands.Cog):
 
 
 async def setup(bot):
-    await bot.add_cog(UtilsCogs(bot))
+    await bot.add_cog(UtilCogs(bot))
