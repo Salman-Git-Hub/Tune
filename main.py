@@ -1,6 +1,4 @@
 import asyncio
-import logging
-import logging.handlers
 import os
 import time
 import discord
@@ -11,20 +9,6 @@ from utils.env import TOKEN
 client = commands.Bot(command_prefix="'",
                       help_command=None,
                       intents=discord.Intents.all())
-logger = logging.getLogger("discord")
-logger.propagate = False
-logger.setLevel(logging.DEBUG)
-logging.getLogger('discord.http').setLevel(logging.INFO)
-handler = logging.handlers.RotatingFileHandler(
-    filename='discord.log',
-    encoding='utf-8',
-    maxBytes=10 * 1024 * 1024,  # 10 MiB
-    backupCount=2
-)
-dt_fmt = '%Y-%m-%d %H:%M:%S'
-formatter = logging.Formatter('[{asctime}] [{levelname:<8}] {name}: {message}', dt_fmt, style='{')
-handler.setFormatter(formatter)
-logger.addHandler(handler)
 
 try:
     os.mkdir("tmp")
