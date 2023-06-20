@@ -99,7 +99,7 @@ class MusicDB:
         self.conn.commit()
         return
 
-    def get_item_from_name(self, playlist: str, name) -> list[MusicItem] | None:
+    def get_items_from_name(self, playlist: str, name) -> list[MusicItem] | None:
         curr = self.conn.cursor()
         items = curr.execute(MusicSQL.SELECT_ITEM_NAME.format(table_name=playlist, name=name)).fetchall()
         if not items:
