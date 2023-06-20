@@ -5,9 +5,9 @@ import discord
 from discord.ext import commands
 from utils.logger import init_discord_logger
 from utils.cache import clear_cache
-from utils.env import TOKEN, PREFIX
+from utils.env import TOKEN, PREFIX, LOG_LEVEL
 
-init_discord_logger()
+init_discord_logger(log_level=LOG_LEVEL)
 client = commands.Bot(command_prefix=PREFIX,
                       help_command=None,
                       intents=discord.Intents.all())
