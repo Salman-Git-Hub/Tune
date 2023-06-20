@@ -1,7 +1,6 @@
 import asyncio
 from timeit import default_timer as timer
 import itertools
-import json
 import logging
 import math
 import random
@@ -29,7 +28,7 @@ class YTDLError(Exception):
 
 class QueueButton(discord.ui.View):
     def __init__(self, ctx: commands.Context, current: int, pages: int):
-        super().__init__(timeout=60)
+        super().__init__(timeout=60 * 2)
         self.ctx = ctx
         self.current = current
         self.pages = pages
@@ -162,11 +161,12 @@ class YTDLSource(discord.PCMVolumeTransformer):
 
 
 class Song:
-    __slots__ = ('source', 'requester')
+    __slots__ = ('source', 'requester', 'time')
 
-    def __init__(self, source: YTDLSource):
+    def __init__(self, source: YTDLSource, time=timer()):
         self.source = source
         self.requester = source.requester
+        self.time = time
 
     def create_embed(self):
         embed = (discord.Embed(title='Now playing',
@@ -242,6 +242,15 @@ class VoiceState:
     def is_playing(self):
         return self.voice and self.current
 
+    async def check_source(self):
+        elapsed = timer() - self.current.time
+        if elapsed > 60 * 5:  # 5 minutes
+            # recreate source
+            # since YouTube streaming links expire after some time
+            new_source = await YTDLSource.create_source(self._ctx, self.current.source.url)
+            self.current = Song(new_source, timer())
+            self.current.requester = self.current.requester
+
     async def audio_player_task(self):
         while True:
             self.next.clear()
@@ -259,9 +268,10 @@ class VoiceState:
                     return
             else:
                 # await self.songs.put(self.current)
-                o_src = await YTDLSource.create_source(self._ctx, self.current.url)
-                await self.songs.put(o_src)
+                o_src = await YTDLSource.create_source(self._ctx, self.current.source.url)
+                await self.songs.put(Song(o_src, timer()))
                 self.current = await self.songs.get()
+            await self.check_source()
             self.current.source.volume = self._volume
             self.voice.play(self.current.source, after=self.play_next_song)
             self.start = timer()
@@ -294,33 +304,35 @@ class Context(commands.Context):
     voice_state: VoiceState = None
 
 
-async def import_playlist(ctx: commands.Context, attach: discord.Attachment):
-    playlists = get_playlists(ctx.guild.id)
-    await attach.save(f"tmp/playlist.{ctx.guild.id}.1.json")
-    with open(f"tmp/playlist.{ctx.guild.id}.1.json", 'r') as f:
-        data = json.load(f)
-    pl_name = data['playlist_name']
-    if playlists is not None:
-        if pl_name in playlists:
-            return await ctx.send(
-                embed=discord.Embed(title=f"Playlist with name: **{pl_name.capitalize()}** already exists!",
-                                    color=discord.Color.magenta())
-            )
-    try:
-        create_playlist(ctx.guild.id, pl_name)
-    except OperationalError:
-        create_guild_playlist(ctx.guild.id)
-        create_playlist(ctx.guild.id, pl_name)
-    for key in data.keys():
-        if key == "playlist_name":
-            continue
-        tmp = data[key]
-        name, url = tmp["name"], tmp["url"]
+# will be updated in future
 
-        insert_playlist_data(ctx.guild.id, pl_name, [name, url])
-    os.remove(f"tmp/playlist.{ctx.guild.id}.1.json")
-    await ctx.send(embed=discord.Embed(title=f"Imported playlist: **{pl_name.capitalize()}**",
-                                       color=discord.Color.magenta()))
+# async def import_playlist(ctx: commands.Context, attach: discord.Attachment):
+#     playlists = get_playlists(ctx.guild.id)
+#     await attach.save(f"tmp/playlist.{ctx.guild.id}.1.json")
+#     with open(f"tmp/playlist.{ctx.guild.id}.1.json", 'r') as f:
+#         data = json.load(f)
+#     pl_name = data['playlist_name']
+#     if playlists is not None:
+#         if pl_name in playlists:
+#             return await ctx.send(
+#                 embed=discord.Embed(title=f"Playlist with name: **{pl_name.capitalize()}** already exists!",
+#                                     color=discord.Color.magenta())
+#             )
+#     try:
+#         create_playlist(ctx.guild.id, pl_name)
+#     except OperationalError:
+#         create_guild_playlist(ctx.guild.id)
+#         create_playlist(ctx.guild.id, pl_name)
+#     for key in data.keys():
+#         if key == "playlist_name":
+#             continue
+#         tmp = data[key]
+#         name, url = tmp["name"], tmp["url"]
+#
+#         insert_playlist_data(ctx.guild.id, pl_name, [name, url])
+#     os.remove(f"tmp/playlist.{ctx.guild.id}.1.json")
+#     await ctx.send(embed=discord.Embed(title=f"Imported playlist: **{pl_name.capitalize()}**",
+#                                        color=discord.Color.magenta()))
 
 
 def get_queue(ctx: Context, page: int = 1):
@@ -653,7 +665,9 @@ class Music(commands.Cog):
             return await ctx.send('Empty queue.')
 
         embed, pages = get_queue(ctx, page)
-        await ctx.send(embed=embed, view=QueueButton(ctx, page, pages))
+        view = QueueButton(ctx, page, pages)
+        msg = await ctx.send(embed=embed, view=view)
+        view.message = msg
 
     @commands.command(name='shuffle')
     async def _shuffle(self, ctx: commands.Context):
@@ -732,7 +746,7 @@ class Music(commands.Cog):
                 video_id = video.id
             try:
                 source = await YTDLSource.create_source(ctx, video_id)
-                await ctx.voice_state.songs.put(Song(source))
+                await ctx.voice_state.songs.put(Song(source, timer()))
             except yt_dlp.DownloadError as e:
                 logger.error(e)
                 continue
@@ -742,8 +756,6 @@ class Music(commands.Cog):
             color=discord.Color.magenta()
         )
         await ctx.send(embed=embed)
-        if not ctx.voice_state.is_playing:
-            await self.bot.loop.create_task(ctx.voice_state.audio_player_task())
 
     # @commands.command(name='pl', aliases=['playlist'])
     # async def _playlist(self, ctx: commands.Context, *, playlist: str):
@@ -966,7 +978,7 @@ class Music(commands.Cog):
         # check if it's a playlist url or id
         if "://" in s or s.startswith("RD"):
             if "&list" in s:
-                playlist_id = s.split("&")[1] .replace("list=", '')
+                playlist_id = s.split("&")[1].replace("list=", '')
             else:
                 playlist_id = s.replace("https://www.youtube.com/playlist?list=", "")
             try:
@@ -990,7 +1002,7 @@ class Music(commands.Cog):
             color=discord.Color.magenta()
         )
         await ctx.send(embed=embed)
-        self.bot.loop.create_task(self.add_to_queue(ctx, items, s))
+        await asyncio.gather(self.add_to_queue(ctx, items, s))
 
     @commands.command(name='search', aliases=['s'])
     async def _search(self, ctx: commands.Context, *query: str):
@@ -1027,7 +1039,7 @@ class Music(commands.Cog):
 
         async with ctx.typing():
             source = await YTDLSource.create_source(ctx, search)
-            song = Song(source)
+            song = Song(source, timer())
 
             await ctx.voice_state.songs.put(song)
             embed = discord.Embed(
