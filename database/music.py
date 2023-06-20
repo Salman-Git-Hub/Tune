@@ -78,12 +78,12 @@ class MusicDB:
         self.conn.commit()
         return
 
-    def get_playlist_items(self, name: str) -> MusicItem | None:
+    def get_playlist_items(self, name: str) -> list[MusicItem] | None:
         if self.empty():
             return None
         curr = self.conn.cursor()
         data = curr.execute(MusicSQL.SELECT_ALL_ITEM.format(table_name=name)).fetchall()
-        return MusicItem.from_list(data)
+        return [MusicItem.from_list(i) for i in data]
 
     def get_playlists(self) -> list | None:
         curr = self.conn.cursor()
