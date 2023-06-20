@@ -978,6 +978,7 @@ class Music(commands.Cog):
             db = MusicDB(ctx.guild.id)
             db.create_connection()
             items = db.get_playlist_items(s)
+            db.close()
             if items is None:
                 return await ctx.send(embed=discord.Embed(
                     title=f'Playlist {s} does not exist!',
