@@ -11,7 +11,8 @@ import yt_dlp
 from async_timeout import timeout
 from discord.ext import commands
 from discord.ext.commands import Parameter
-from db.music import *
+from database.music import MusicDB, MusicItem
+from googleapiclient.errors import HttpError
 from api import youtube
 
 bot = commands.Bot(command_prefix="'", help_command=None, intents=discord.Intents.all())
@@ -34,8 +35,9 @@ class QueueButton(discord.ui.View):
         self.pages = pages
 
     async def on_timeout(self) -> None:
-        await self.ctx.send("Timed out!", ephemeral=True)
-        return
+        for item in self.children:
+            item.disabled = True
+        await self.message.edit(view=self)
 
     async def on_error(self, interaction: discord.Interaction, error, item):
         logger.error(error)
@@ -717,7 +719,7 @@ class Music(commands.Cog):
         ctx.voice_state.loop = not ctx.voice_state.loop
         await ctx.message.add_reaction('✅')
 
-    async def add_to_queue(self, ctx: commands.Context, items, name: str = None):
+    async def add_to_queue(self, ctx: commands.Context, items: list[dict | MusicItem], name: str = None):
 
         ctx.voice_state = self.get_voice_state(ctx)
 
@@ -726,8 +728,8 @@ class Music(commands.Cog):
                 # from online playlist, keys -> title, id
                 video_id = video.get("id")
             except AttributeError:
-                # from local database, values -> (title, id, index)
-                video_id = video[1]
+                # from local database, MusicItem
+                video_id = video.id
             try:
                 source = await YTDLSource.create_source(ctx, video_id)
                 await ctx.voice_state.songs.put(Song(source))
@@ -735,7 +737,7 @@ class Music(commands.Cog):
                 logger.error(e)
                 continue
         embed = discord.Embed(
-            title=f'Added {name if name is not None else "playlist"} to the queue!',
+            title=f'Added playlist {name if name is not None else ""} to the queue!',
             description='',
             color=discord.Color.magenta()
         )
@@ -743,6 +745,251 @@ class Music(commands.Cog):
         if not ctx.voice_state.is_playing:
             await self.bot.loop.create_task(ctx.voice_state.audio_player_task())
 
+    # @commands.command(name='pl', aliases=['playlist'])
+    # async def _playlist(self, ctx: commands.Context, *, playlist: str):
+    #     """Plays a playlist
+    #     If a song is playing then the playlist's videos are added to the queue.
+    #     """
+    #
+    #     ctx.voice_state = self.get_voice_state(ctx)
+    #     if playlist.startswith("export"):
+    #         playlist_l = playlist.replace("export ", "")
+    #         if len(playlist_l.strip()) == 0:
+    #             return await ctx.send("Playlist name required!", delete_after=5)
+    #         pl_name = playlist_l.lower()
+    #         try:
+    #             data = get_playlist_data(ctx.guild.id, pl_name)
+    #         except OperationalError:
+    #             return await ctx.send("Playlist does not exists", delete_after=5)
+    #         if data is None:
+    #             return await ctx.send("Empty playlist!", delete_after=5)
+    #         exp = {"playlist_name": pl_name}
+    #         for item in data:
+    #             name, url, _id = item
+    #             exp[_id] = {
+    #                 "name": name,
+    #                 "url": url
+    #             }
+    #         with open(f"tmp/playlist.{ctx.guild.id}.0.json", 'w', encoding='utf-8') as f:
+    #             json.dump(exp, f, indent=4)
+    #         await ctx.send(embed=discord.Embed(title="Exported playlist file!", color=discord.Color.magenta())
+    #                        , file=discord.File(fr"./tmp/playlist.{ctx.guild.id}.0.json",
+    #                                            filename=f"{pl_name}-export.json"))
+    #         os.remove(f"tmp/playlist.{ctx.guild.id}.0.json")
+    #         return
+    #
+    #     if playlist.startswith("import"):
+    #         attach = ctx.message.attachments
+    #         if len(attach) == 0:
+    #             return await ctx.send("Attach the file along with command!")
+    #
+    #         await ctx.send(embed=discord.Embed(title="Importing playlist!",
+    #                                            color=discord.Color.magenta()))
+    #         for file in attach:
+    #             self.bot.loop.create_task(import_playlist(ctx, file))
+    #         return
+    #
+    #     if playlist.startswith("create"):
+    #         playlist_l = playlist.replace("create ", "")
+    #         if len(playlist_l.strip()) == 0:
+    #             return await ctx.send("Playlist name required!")
+    #         name = playlist_l.lower()
+    #         try:
+    #             create_playlist(ctx.guild.id, name)
+    #         except OperationalError:
+    #             create_guild_playlist(ctx.guild.id)
+    #             create_playlist(ctx.guild.id, name)
+    #         embed = discord.Embed(
+    #             title='Created playlist!',
+    #             description=f'**{name.capitalize()}**',
+    #             color=discord.Color.magenta()
+    #         )
+    #         return await ctx.send(embed=embed)
+    #
+    #     if playlist.startswith("add"):
+    #         playlist_list = playlist.split(" ")
+    #         n = playlist_list.pop(0)
+    #         try:
+    #             name = playlist_list.pop()
+    #         except IndexError:
+    #             return await ctx.send("Playlist name missing!")
+    #         query = " ".join(playlist_list)
+    #         if query == " " or query == '':
+    #             return await ctx.send("Playlist item missing!")
+    #
+    #         if "://" in query:
+    #             if "&" in query or "playlist" in query:
+    #                 if "&" in query:
+    #                     link = query.split("&")[1].replace("list=", '')
+    #                 if "playlist" in query:
+    #                     link = query.replace("https://youtube.com/playlist?list=", "")
+    #                 items = youtube.playlist(link)
+    #                 itms = []
+    #                 for item in items:
+    #                     data = [item.get('title'), item.get('id')]
+    #                     insert_playlist_data(ctx.guild.id, name, data)
+    #                     itms.append(data[0])
+    #                 itm = "\n".join(itms)
+    #                 embed = discord.Embed(
+    #                     title=f'Added {len(itms)} to {name.capitalize()}!',
+    #                     description=f'```{itm}```',
+    #                     color=discord.Color.magenta()
+    #                 )
+    #                 await ctx.send(embed=embed)
+    #                 return
+    #             video = YTDLSource.extract_data(query)
+    #             data = [video['title'], video['webpage_url']]
+    #         else:
+    #             data = youtube.search_video(query)[0]
+    #         insert_playlist_data(ctx.guild.id, name, data)
+    #         embed = discord.Embed(
+    #             title=f'Added to {name.capitalize()}!',
+    #             description=f'**{data[0]}**',
+    #             color=discord.Color.magenta()
+    #         )
+    #         await ctx.send(embed=embed)
+    #         return
+    #
+    #     elif "://" in playlist:
+    #         if not ctx.voice_state.voice:
+    #             await ctx.invoke(self._join)
+    #         if "&" in playlist:
+    #             link = playlist.split("&")[1].replace("list=", '')
+    #         else:
+    #             link = playlist.replace("https://www.youtube.com/playlist?list=", "")
+    #         items = youtube.playlist(link)
+    #         embed = discord.Embed(
+    #             title='Just a sec!',
+    #             description="Adding playlist to the queue!",
+    #             color=discord.Color.magenta()
+    #         )
+    #         tmp_embed = await ctx.send(embed=embed)
+    #         asyncio.get_event_loop().create_task(self.add_to_queue(ctx, items))
+    #         return
+    #
+    #     elif playlist.startswith("guild") or playlist.startswith("server"):
+    #         items = get_playlists(ctx.guild.id)
+    #         embed = discord.Embed(
+    #             title='Server Playlists!',
+    #             description=("```" + ", ".join(items) + "```") if items is not None else ("```" + 'None' + "```"),
+    #             color=discord.Color.magenta()
+    #         )
+    #         return await ctx.send(embed=embed)
+    #
+    #     elif playlist.startswith("list"):
+    #         playlist_list = playlist.split(" ")
+    #         n = playlist_list.pop(0)
+    #         name = " ".join(playlist_list)
+    #         if name == "":
+    #             embed = discord.Embed(
+    #                 title='Error!',
+    #                 description=f'Playlist name required!',
+    #                 color=discord.Color.magenta()
+    #             )
+    #             return await ctx.send(embed=embed)
+    #         try:
+    #             items = get_playlist_items(ctx.guild.id, name)
+    #         except OperationalError:
+    #             embed = discord.Embed(
+    #                 title='Error!',
+    #                 description=f'Playlist `{name}` does not exist!',
+    #                 color=discord.Color.magenta()
+    #             )
+    #             return await ctx.send(embed=embed)
+    #         if items is None:
+    #             embed = discord.Embed(
+    #                 title='Empty playlist!',
+    #                 color=discord.Color.magenta()
+    #             )
+    #             return await ctx.send(embed=embed)
+    #         itm = ''
+    #         for item in items:
+    #             t = str(item[2]) + ". " + item[0]
+    #             itm += t + "\n"
+    #         embed = discord.Embed(
+    #             title=f'{name.capitalize()} items!',
+    #             description=f"```{itm.strip()}```",
+    #             color=discord.Color.magenta()
+    #         )
+    #         return await ctx.send(embed=embed)
+    #
+    #     elif playlist.startswith("remove"):
+    #         playlist_list = playlist.split(" ")
+    #         n = playlist_list.pop(0)
+    #         try:
+    #             index = playlist_list.pop(0)
+    #         except IndexError:
+    #             return await ctx.send("Item index required!")
+    #
+    #         try:
+    #             name = playlist_list.pop(-1)
+    #         except IndexError:
+    #             return await ctx.send("Playlist name required!")
+    #
+    #         try:
+    #             item = remove_playlist_item(ctx.guild.id, name, int(index))
+    #         except OperationalError:
+    #             return await ctx.send("Playlist does not exists!")
+    #         embed = discord.Embed(
+    #             title=f'Removed from: {name.capitalize()}',
+    #             description=f"[{item[0]}]({item[1]})",
+    #             color=discord.Color.magenta()
+    #         )
+    #         return await ctx.send(embed=embed)
+    #
+    #     else:
+    #         if not ctx.voice_state.voice:
+    #             await ctx.invoke(self._join)
+    #         try:
+    #             items = get_playlist_data(ctx.guild.id, playlist)
+    #         except OperationalError:
+    #             return await ctx.send("Playlist does not exist!")
+    #         if items is None:
+    #             return await ctx.send("Playlist name required!")
+    #         if ctx.voice_state.voice is not None:
+    #             embed = discord.Embed(
+    #                 title='Just a sec!',
+    #                 description=f"Adding playlist {playlist.capitalize()} to the queue!",
+    #                 color=discord.Color.magenta()
+    #             )
+    #             await ctx.send(embed=embed)
+    #             self.bot.loop.create_task(self.add_to_queue(ctx, items, playlist))
+    #         return
+    #
+    @commands.group('pl', aliases=['playlist'])
+    async def _playlist(self, ctx: commands.Context, s: str):
+
+        ctx.voice_state = self.get_voice_state(ctx)
+        if not ctx.voice_state.voice:
+            await ctx.invoke(self._join)
+
+        # check if it's a playlist url or id
+        if "://" in s or s.startswith("RD"):
+            if "&list" in s:
+                playlist_id = s.split("&")[1] .replace("list=", '')
+            else:
+                playlist_id = s.replace("https://www.youtube.com/playlist?list=", "")
+            try:
+                items = youtube.playlist(playlist_id)
+            except HttpError:
+                return await ctx.send('Invalid playlist url!')
+            s = None
+        else:
+            db = MusicDB(ctx.guild.id)
+            db.create_connection()
+            items = db.get_playlist_items(s)
+            if items is None:
+                return await ctx.send(embed=discord.Embed(
+                    title=f'Playlist {s} does not exist!',
+                    color=discord.Color.magenta()
+                ))
+        embed = discord.Embed(
+            title='Just a sec!',
+            description=f"Adding playlist {s if s is not None else ''} to the queue!",
+            color=discord.Color.magenta()
+        )
+        await ctx.send(embed=embed)
+        self.bot.loop.create_task(self.add_to_queue(ctx, items, s))
 
     @commands.command(name='search', aliases=['s'])
     async def _search(self, ctx: commands.Context, *query: str):
