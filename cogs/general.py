@@ -7,13 +7,13 @@ class GeneralCog(commands.Cog):
         self.bot = bot
 
     # ping
-    @commands.command(pass_context=True)
+    @commands.command()
     async def ping(self, ctx):
         f = round(self.bot.latency * 1000)
         await ctx.send('**Ping: **' + str(f) + ' ms')
 
     # info
-    @commands.command(pass_context=True)
+    @commands.command()
     async def info(self, ctx, member: discord.Member):
 
         stat = str(member.status)
@@ -37,39 +37,30 @@ class GeneralCog(commands.Cog):
         return await ctx.send(embed=embed)
 
     # server
-    @commands.command(pass_context=True)
+    @commands.command()
     async def server(self, ctx):
-        description = str(ctx.guild.description)
-        created = str(ctx.guild.created_at.strftime("%Y-%m-%d"))
-
-        owner = str(ctx.guild.owner.mention)
-        id = str(ctx.guild.id)
-        gt = str(ctx.guild.region)
-        region = gt.upper()
-
-        channel = str(len(ctx.guild.channels))
-        text = str(len(ctx.guild.text_channels))
-        voice = str(len(ctx.guild.voice_channels))
-
-        membercount = str(ctx.guild.member_count)
-
-        erif = str(ctx.guild.verification_level)
-        der = erif.upper()
-
+        description = ctx.guild.description
+        created = ctx.guild.created_at.strftime("%Y-%m-%d")
+        owner = ctx.guild.owner.mention
+        id = ctx.guild.id
+        channel = len(ctx.guild.channels)
+        text = len(ctx.guild.text_channels)
+        voice = len(ctx.guild.voice_channels)
+        membercount = ctx.guild.member_count
+        level = str(ctx.guild.verification_level).upper()
         roles = str(len(ctx.guild.roles))
         premium = str(ctx.guild.premium_subscription_count)
 
         embed = discord.Embed(
             title="Server Information",
-            description=description,
+            description=description or "No description",
             color=discord.Color.blue()
         )
-        embed.set_thumbnail(url=str(ctx.guild.icon_url))
+        embed.set_thumbnail(url=str(ctx.guild.icon.url))
         embed.add_field(name="ID", value=id, inline=False)
         embed.add_field(name="Created At", value=created, inline=False)
         embed.add_field(name="Owner", value=owner, inline=False)
-        embed.add_field(name="Region", value=region, inline=False)
-        embed.add_field(name="Verification Level", value=der, inline=False)
+        embed.add_field(name="Verification Level", value=level, inline=False)
         embed.add_field(name="Channels", value=channel, inline=False)
         embed.add_field(name="Text Channels", value=text, inline=True)
         embed.add_field(name="Voice Channels", value=voice, inline=True)
@@ -80,5 +71,5 @@ class GeneralCog(commands.Cog):
         return await ctx.send(embed=embed)
 
 
-async def setup(lient):
-    await lient.add_cog(GeneralCog(lient))
+async def setup(bot):
+    await bot.add_cog(GeneralCog(bot))
