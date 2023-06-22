@@ -26,7 +26,7 @@ class MusicItem:
     def __init__(self, name: str, url: str, id: str = None):
         self.name = name
         self.url = url
-        self.id = id
+        self.id = str(id)
 
     @classmethod
     def from_list(cls, data: list):
@@ -38,8 +38,14 @@ class MusicItem:
             id = None
         return cls(name, url, id)
 
+    @classmethod
+    def from_dict(cls, data: dict):
+        name = data['title']
+        url = data['id']
+        return cls(name, url, None)
+
     def __str__(self) -> str:
-        return f"{self.id}. [{self.name}]({self.url})" if self.id is not None else  f"[{self.name}({self.url})"
+        return f"**{self.id}. [{self.name}]({self.url})**" if self.id is not None else f"**[{self.name}({self.url})**"
 
     def __repr__(self) -> str:
         return self.__str__()
@@ -49,18 +55,20 @@ class MusicDB:
     """
     Class for Music CRUD operations
     """
+
     def __init__(self, guild_id):
-        self.guild_id = guild_id
-        self.db = os.path.join(DB_PATH, "music", "guild_" + guild_id + ".db")
+        self.guild_id = str(guild_id)
+        self.db = os.path.join(DB_PATH, "music", "guild_" + str(guild_id) + ".db")
         self.conn: sqlite3.Connection = None
 
     def exists(self) -> bool:
         return os.path.exists(self.db)
 
-    def empty(self) -> bool:
-        return len(
-            sqlite3.connect(self.db).cursor().execute(MusicSQL.SELECT_TABLES).fetchall()
-        ) != 0
+    def contains(self, playlist: str) -> bool:
+        l = sqlite3.connect(self.db).cursor().execute(MusicSQL.SELECT_TABLES).fetchall()
+        if playlist in l:
+            return True
+        return False
 
     def close(self):
         self.conn.close()
@@ -78,11 +86,13 @@ class MusicDB:
         self.conn.commit()
         return
 
-    def get_playlist_items(self, name: str) -> list[MusicItem] | None:
-        if self.empty():
-            return None
+    def get_playlist_items(self, name: str) -> list[MusicItem] | int:
+        if not self.contains(name):
+            return 0  # playlist does not exist
         curr = self.conn.cursor()
         data = curr.execute(MusicSQL.SELECT_ALL_ITEM.format(table_name=name)).fetchall()
+        if not data:
+            return -1  # empty playlist
         return [MusicItem.from_list(i) for i in data]
 
     def get_playlists(self) -> list | None:
@@ -94,29 +104,42 @@ class MusicDB:
         return tables
 
     def insert_item(self, name: str, item: MusicItem):
+        self.create_playlist(name)  # in case db does not exist
         curr = self.conn.cursor()
         curr.execute(MusicSQL.INSERT_ITEM.format(table_name=name, name=item.name, url=item.url))
         self.conn.commit()
         return
 
-    def get_items_from_name(self, playlist: str, name) -> list[MusicItem] | None:
+    def get_items_from_name(self, playlist: str, name) -> list[MusicItem] | int:
+        if not self.contains(playlist):
+            return 0
         curr = self.conn.cursor()
         items = curr.execute(MusicSQL.SELECT_ITEM_NAME.format(table_name=playlist, name=name)).fetchall()
         if not items:
-            return None
+            return -1
         results = [MusicItem.from_list(i) for i in items]
         return results
 
-    def delete_from_id(self, name: str, id: int) -> MusicItem:
+    def delete_from_id(self, name: str, id: int) -> MusicItem | int:
+        if not self.contains(name):
+            return 0
         curr = self.conn.cursor()
-        item = curr.execute(MusicSQL.SELECT_ITEM.format(table_name=name, id=id)).fetchall()[0]
-        curr.execute(MusicSQL.DELETE_FROM.format(table_name=name, id=id))
+        try:
+            item = curr.execute(MusicSQL.SELECT_ITEM.format(table_name=name, id=id)).fetchall()[0]
+        except IndexError:
+            return 1  # item does not exist
         self.conn.commit()
+        curr.execute(MusicSQL.DELETE_FROM.format(table_name=name, id=id))
         return MusicItem.from_list(item)
 
-    def delete_from_name(self, playlist: str, name: str) -> MusicItem:
+    def delete_from_name(self, playlist: str, name: str) -> MusicItem | int:
+        if not self.contains(playlist):
+            return 0
         curr = self.conn.cursor()
-        item = curr.execute(MusicSQL.SELECT_ITEM_NAME.format(table_name=playlist, name=name)).fetchall()[0]
+        try:
+            item = curr.execute(MusicSQL.SELECT_ITEM_NAME.format(table_name=playlist, name=name)).fetchall()[0]
+        except IndexError:
+            return 1
         curr.execute(MusicSQL.DELETE_FROM.format(table_name=playlist, id=item[2]))
         self.conn.commit()
         return MusicItem.from_list(item)
