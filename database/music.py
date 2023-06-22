@@ -131,15 +131,3 @@ class MusicDB:
         self.conn.commit()
         curr.execute(MusicSQL.DELETE_FROM.format(table_name=name, id=id))
         return MusicItem.from_list(item)
-
-    def delete_from_name(self, playlist: str, name: str) -> MusicItem | int:
-        if not self.contains(playlist):
-            return 0
-        curr = self.conn.cursor()
-        try:
-            item = curr.execute(MusicSQL.SELECT_ITEM_NAME.format(table_name=playlist, name=name)).fetchall()[0]
-        except IndexError:
-            return 1
-        curr.execute(MusicSQL.DELETE_FROM.format(table_name=playlist, id=item[2]))
-        self.conn.commit()
-        return MusicItem.from_list(item)
