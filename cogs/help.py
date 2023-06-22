@@ -2,9 +2,11 @@ import discord
 from discord.ext import commands
 
 
-
 class HelpCog(commands.Cog):
     def __init__(self, bot):
+        self.voice = None
+        self.text = None
+        self.image = None
         self.bot = bot
         self.icon = 'https://img.icons8.com/ios-glyphs/60/undefined/help.png'
         self.load_help_file()
@@ -16,7 +18,6 @@ class HelpCog(commands.Cog):
         self.image = image_help.split("//")
         self.text = txt_help.split("//")
         self.voice = voice_help.split("//")
-
 
     @commands.group(name='help', invoke_without_command=True)
     async def help(self, ctx: commands.Context):
@@ -35,7 +36,7 @@ class HelpCog(commands.Cog):
     @help.command(name='text', aliases=['tc'])
     async def text_commands(self, ctx: commands.Context):
         embed = discord.Embed(
-            title = "Text Channel Commands",
+            title="Text Channel Commands",
             color=discord.Color.dark_blue()
         )
         embed.set_thumbnail(url=self.icon)
@@ -45,7 +46,7 @@ class HelpCog(commands.Cog):
     @help.command(name='voice', aliases=['vc'])
     async def voice_commands(self, ctx: commands.Context):
         embed = discord.Embed(
-            title = "Voice Channel Commands",
+            title="Voice Channel Commands",
             color=discord.Color.dark_blue()
         )
         embed.set_thumbnail(url=self.icon)
@@ -79,12 +80,14 @@ class HelpCog(commands.Cog):
         pl = """**
 pl create `playlist name` - Creates an new playlist.
 pl `playlist url | playlist name` - Adds the playlist to the queue.
-pl add `url | name` `playlist name` - Adds an item to the playlist. Creates a new one if it does not exists.
-pl remove `id` `playlist name` - Remove an item from playlist.
+pl add `playlist name `url | name` ` - Adds an item to the playlist.
+pl remove `playlist name` `id` - Remove an item from playlist.
+pl removen `playlist name` `name` - Remove using name.
 pl server - Get a list of server's playlist.
 pl list `playlist name` - Lists the items in a playlist.**
         """
         embed.add_field(name='Usage', value=pl)
+        embed.set_footer(text='First letter of subcommands can be used!')
         await ctx.send(embed=embed)
 
     @help.command(name="ping")
