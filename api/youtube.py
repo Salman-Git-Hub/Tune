@@ -1,3 +1,4 @@
+import requests
 from googleapiclient.discovery import build
 from utils.env import YOUTUBE_API_KEY
 
@@ -17,6 +18,26 @@ def search_video(q: str, items: int = 5) -> list:
         [item['snippet']['title'], item['id']['videoId']] for item in response['items']
     ]
     return search_results
+
+
+def video(video_id: str) -> dict:
+    request = youtube.videos().list(
+        part='snippet',
+        id=video_id
+    )
+    response = request.execute()['items'][0]
+    return {
+        "title": response['title'],
+        "id": f"https://youtu.be/{video_id}"
+    }
+
+
+def video_exists(video_id: str) -> bool:
+    url = "http://img.youtube.com/vi/" + video_id + "/mqdefault.jpg"
+    img = requests.get(url).status_code
+    if img != 200:
+        return False
+    return True
 
 
 def playlist(playlist_id: str, items: int = 25) -> list[dict]:
