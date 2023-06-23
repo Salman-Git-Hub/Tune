@@ -7,13 +7,13 @@ class GeneralCog(commands.Cog):
         self.bot = bot
 
     # ping
-    @commands.command()
+    @commands.hybrid_command(name='ping')
     async def ping(self, ctx):
         f = round(self.bot.latency * 1000)
         await ctx.send('**Ping: **' + str(f) + ' ms')
 
     # info
-    @commands.command()
+    @commands.hybrid_command(name='info')
     async def info(self, ctx, member: discord.Member):
 
         stat = str(member.status)
@@ -37,7 +37,7 @@ class GeneralCog(commands.Cog):
         return await ctx.send(embed=embed)
 
     # server
-    @commands.command()
+    @commands.hybrid_command(name='server')
     async def server(self, ctx):
         description = ctx.guild.description
         created = ctx.guild.created_at.strftime("%Y-%m-%d")

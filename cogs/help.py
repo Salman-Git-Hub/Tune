@@ -19,7 +19,7 @@ class HelpCog(commands.Cog):
         self.text = txt_help.split("//")
         self.voice = voice_help.split("//")
 
-    @commands.group(name='help', invoke_without_command=True)
+    @commands.hybrid_group(name='help', invoke_without_command=True)
     async def help(self, ctx: commands.Context):
         embed = discord.Embed(
             title='Help Command!',

@@ -24,11 +24,11 @@ class AnimeCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command(name='anirx')
-    async def _anirx(self, ctx: commands.Context, message: str = None):
+    @commands.hybrid_command(name='anirx')
+    async def _anirx(self, ctx: commands.Context, endpoint: str = None):
         url = None
-        if message is not None:
-            endpoint = message.strip().lower()
+        if endpoint is not None:
+            endpoint = endpoint.strip().lower()
             url = await get_anime_image(endpoint)
             if url is not None:
                 embed = discord.Embed(
@@ -41,7 +41,7 @@ class AnimeCog(commands.Cog):
             else:
                 return await ctx.send("Invalid endpoint", delete_after=10)
 
-    @commands.command(name="animg")
+    @commands.hybrid_command(name="animg")
     async def _animg(self, ctx: commands.Context):
         d = await get_api_bi_image()
         image = await Image.create_image(d)
