@@ -15,7 +15,7 @@ def search_video(q: str, items: int = 5) -> list:
     )
     response = request.execute()
     search_results = [
-        [item['snippet']['title'], item['id']['videoId']] for item in response['items']
+        dict(title=item['snippet']['title'], id=item['id']['videoId']) for item in response['items']
     ]
     return search_results
 
@@ -27,7 +27,7 @@ def video(video_id: str) -> dict:
     )
     response = request.execute()['items'][0]
     return {
-        "title": response['title'],
+        "title": response['snippet']['title'],
         "id": f"https://youtu.be/{video_id}"
     }
 
