@@ -5,3 +5,4 @@ venv/
 discord.log
 db/
 __pycache__/
+tmp/
