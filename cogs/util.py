@@ -70,21 +70,25 @@ class UtilCogs(commands.Cog):
         if not guilds:
             if mode == '~':
                 await ctx.bot.tree.sync(guild=ctx.guild)
+                msg = "Synced current server!"
             elif mode == '*':
                 await ctx.bot.tree.sync()
-                await ctx.bot.tree.copy_global_to(guild=ctx.guild)
+                ctx.bot.tree.copy_global_to(guild=ctx.guild)
+                msg = 'Copied commands to current server!'
             elif mode == '^':
                 ctx.bot.tree.clear_commands(guild=ctx.guild)
                 await ctx.bot.tree.sync(guild=ctx.guild)
+                msg = "Cleared all commands and synced!"
             else:
                 await ctx.bot.tree.sync()
-            return
+                msg = "Global Sync!"
+            return await ctx.send(msg, ephemeral=True)
         for guild in guilds:
             try:
                 await ctx.bot.tree.sync(guild=guild)
             except discord.HTTPException:
                 pass
-        return await ctx.send("Synced commands!")
+        return await ctx.send("Synced commands in given servers!")
 
 
 async def setup(bot):
