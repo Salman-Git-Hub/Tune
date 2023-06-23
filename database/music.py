@@ -45,7 +45,7 @@ class MusicItem:
         return cls(name, url, None)
 
     def __str__(self) -> str:
-        return f"**{self.id}. [{self.name}]({self.url})**" if self.id is not None else f"**[{self.name}({self.url})**"
+        return f"{self.id}. [{self.name}]({self.url})" if self.id is not None else f"[{self.name}]({self.url})"
 
     def __repr__(self) -> str:
         return self.__str__()
@@ -66,6 +66,9 @@ class MusicDB:
 
     def contains(self, playlist: str) -> bool:
         l = sqlite3.connect(self.db).cursor().execute(MusicSQL.SELECT_TABLES).fetchall()
+        if not l:
+            return False
+        l = [t[1] for t in l]
         if playlist in l:
             return True
         return False
@@ -128,6 +131,6 @@ class MusicDB:
             item = curr.execute(MusicSQL.SELECT_ITEM.format(table_name=name, id=id)).fetchall()[0]
         except IndexError:
             return 1  # item does not exist
-        self.conn.commit()
         curr.execute(MusicSQL.DELETE_FROM.format(table_name=name, id=id))
+        self.conn.commit()
         return MusicItem.from_list(item)
