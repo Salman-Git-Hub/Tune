@@ -11,7 +11,8 @@ class MusicSQL:
         CREATE TABLE IF NOT EXISTS {table_name} (
            name TEXT NOT NULL,
            url TEXT NOT NULL,
-           id INTEGER PRIMARY KEY AUTOINCREMENT
+           id INTEGER PRIMARY KEY AUTOINCREMENT,
+           UNIQUE (name, url)
        );
     """
     INSERT_ITEM = "INSERT INTO {table_name} (name, url) VALUES ('{name}', '{url}');"
@@ -26,7 +27,7 @@ class MusicItem:
     def __init__(self, name: str, url: str, id: str = None):
         self.name = name
         self.url = url
-        self.id = str(id)
+        self.id = id
 
     @classmethod
     def from_list(cls, data: list):
@@ -41,7 +42,7 @@ class MusicItem:
     @classmethod
     def from_dict(cls, data: dict):
         name = data['title']
-        url = data['id']
+        url = data.get("id") or data.get("url")
         return cls(name, url, None)
 
     def __str__(self) -> str:
@@ -109,6 +110,7 @@ class MusicDB:
     def insert_item(self, name: str, item: MusicItem):
         self.create_playlist(name)  # in case db does not exist
         curr = self.conn.cursor()
+        # will raise IntegrityError on inserting existing item
         curr.execute(MusicSQL.INSERT_ITEM.format(table_name=name, name=item.name, url=item.url))
         self.conn.commit()
         return
