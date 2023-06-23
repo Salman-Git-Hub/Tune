@@ -997,16 +997,12 @@ class Music(commands.Cog):
 
     @commands.command(name='search', aliases=['s'])
     async def _search(self, ctx: commands.Context, *, query: str):
-        if query is None or len(query) == 0:
-            await ctx.message.delete()
-            return await ctx.send("Search query required!", delete_after=5)
-
         data = youtube.search_video(query)
         search_result = ''
         for i, item in enumerate(data, start=1):
-            _id = item[1]
+            _id = item['id']
             url = _id if "://" in _id else f"https://youtu.be/{_id}"
-            val = f"**{i}. [{item[0]}]({url})**"
+            val = f"**{i}. [{item['title']}]({url})**"
             search_result += val + "\n\n"
 
         return await ctx.send(embed=discord.Embed(
