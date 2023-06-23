@@ -1,4 +1,5 @@
 import os
+from typing import Optional, Literal
 import psutil
 import humanize
 import discord
@@ -18,7 +19,7 @@ class UtilCogs(commands.Cog):
                     await self.bot.load_extension(f"cogs.{ext}")
 
     @commands.is_owner()
-    @commands.command(name='reload')
+    @commands.hybrid_command(name='reload')
     async def _reload(self, ctx: commands.Context, cog: str = None):
         await ctx.message.delete()
         if cog is None:
@@ -41,7 +42,7 @@ class UtilCogs(commands.Cog):
         await msg.delete(delay=5)
         return
 
-    @commands.command(name='usage', aliases=['u', 'status', 'stat'])
+    @commands.hybrid_command(name='usage', aliases=['u', 'status', 'stat'])
     async def usage_(self, ctx: commands.Context):
         freq = psutil.cpu_freq().current
         cpu_u = psutil.cpu_percent()
@@ -60,6 +61,30 @@ class UtilCogs(commands.Cog):
                                 "-statistics-marketing-kmg-design-flat-kmg-design.png")
 
         return await ctx.send(embed=embed)
+
+    @commands.is_owner()
+    @commands.guild_only()
+    @commands.hybrid_command(name='sync')
+    async def _sync_commands(self, ctx: commands.Context, guilds: commands.Greedy[discord.Guild],
+                             mode: Optional[Literal['~', '*', '^']] = None):
+        if not guilds:
+            if mode == '~':
+                await ctx.bot.tree.sync(guild=ctx.guild)
+            elif mode == '*':
+                await ctx.bot.tree.sync()
+                await ctx.bot.tree.copy_global_to(guild=ctx.guild)
+            elif mode == '^':
+                ctx.bot.tree.clear_commands(guild=ctx.guild)
+                await ctx.bot.tree.sync(guild=ctx.guild)
+            else:
+                await ctx.bot.tree.sync()
+            return
+        for guild in guilds:
+            try:
+                await ctx.bot.tree.sync(guild=guild)
+            except discord.HTTPException:
+                pass
+        return await ctx.send("Synced commands!")
 
 
 async def setup(bot):
