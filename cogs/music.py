@@ -137,7 +137,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
     async def create_source(cls, ctx: commands.Context, search: str, *,
                             time: int = 0):
         with YTDLSource.ytdlp as ytdl:
-            data = ytdl.sanitize_info(ytdl.extract_info(search, download=False))
+            data = ytdl.extract_info(search, download=False)
         if 'entries' in data:
             data = data['entries'][0]
 
@@ -366,7 +366,8 @@ class MusicUtils:
         await ctx.send(embed=discord.Embed(
                 title='Playlist export!',
                 color=discord.Color.magenta()
-            ), file=discord.File(f"./tmp/{playlist_name}-{ctx.guild.id}.export.json", filename=f"{playlist_name}.json")
+            ), file=discord.File(f"./tmp/{playlist_name}-{ctx.guild.id}.export.json", filename=f"{playlist_name}.json"),
+            delete_after=120
         )
         os.remove(f"tmp/{playlist_name}-{ctx.guild.id}.export.json")
 
@@ -382,11 +383,12 @@ class MusicUtils:
                 _exist.append(str(item))
                 continue
         db.close()
-        await ctx.send(embed=discord.Embed(
-            title='Following items already exist!',
-            description="\n".join(_exist),
-            color=discord.Color.magenta()
-        ))
+        if _exist:
+            await ctx.send(embed=discord.Embed(
+                title='Following items already exist!',
+                description="\n".join(_exist),
+                color=discord.Color.magenta()
+            ))
         return
 
     @staticmethod
@@ -565,6 +567,7 @@ class Music(commands.Cog):
             return await ctx.send(embed=embed)
 
         if ctx.voice_state.voice.is_playing():
+            self.pause_time = timer()
             ctx.voice_state.voice.pause()
             await ctx.message.add_reaction('⏯')
             embed = discord.Embed(
@@ -590,6 +593,8 @@ class Music(commands.Cog):
 
         if ctx.voice_state.voice.is_paused():
             ctx.voice_state.voice.resume()
+            elapsed = timer() - self.pause_time
+            ctx.voice_state.start = ctx.voice_state.start - elapsed
             await ctx.message.add_reaction('⏯')
             embed = discord.Embed(
                 title=f"{ctx.message.author} Resumed the song!",
@@ -796,8 +801,8 @@ class Music(commands.Cog):
                 # from online playlist, keys -> title, id
                 video_id = video.get("id")
             except AttributeError:
-                # from local database, MusicItem
-                video_id = video.id
+                # from local database, MusicItem -> name, url, id
+                video_id = video.url
             try:
                 source = await YTDLSource.create_source(ctx, video_id)
                 await ctx.voice_state.songs.put(Song(source, timer()))
