@@ -1,5 +1,9 @@
 import re
+import os
+import json
 import asyncio
+import shutil
+import sqlite3
 from urllib.parse import parse_qs, urlparse
 from timeit import default_timer as timer
 import itertools
@@ -301,35 +305,6 @@ class VoiceState:
             self.current = None
 
 
-# will be updated in future
-
-# async def import_playlist(ctx: commands.Context, attach: discord.Attachment):
-#     playlists = get_playlists(ctx.guild.id)
-#     await attach.save(f"tmp/playlist.{ctx.guild.id}.1.json")
-#     with open(f"tmp/playlist.{ctx.guild.id}.1.json", 'r') as f:
-#         data = json.load(f)
-#     pl_name = data['playlist_name']
-#     if playlists is not None:
-#         if pl_name in playlists:
-#             return await ctx.send(
-#                 embed=discord.Embed(title=f"Playlist with name: **{pl_name.capitalize()}** already exists!",
-#                                     color=discord.Color.magenta())
-#             )
-#     try:
-#         create_playlist(ctx.guild.id, pl_name)
-#     except OperationalError:
-#         create_guild_playlist(ctx.guild.id)
-#         create_playlist(ctx.guild.id, pl_name)
-#     for key in data.keys():
-#         if key == "playlist_name":
-#             continue
-#         tmp = data[key]
-#         name, url = tmp["name"], tmp["url"]
-#
-#         insert_playlist_data(ctx.guild.id, pl_name, [name, url])
-#     os.remove(f"tmp/playlist.{ctx.guild.id}.1.json")
-#     await ctx.send(embed=discord.Embed(title=f"Imported playlist: **{pl_name.capitalize()}**",
-#                                        color=discord.Color.magenta()))
 class MusicUtils:
     @staticmethod
     def get_queue(ctx: commands.Context, page: int = 1):
@@ -373,10 +348,62 @@ class MusicUtils:
             return False
         elif val is None:
             await ctx.send(embed=discord.Embed(
-                title='No playlists!'
+                title='No playlists!',
+                color=discord.Color.magenta()
             ))
         else:
             return True
+
+    @staticmethod
+    async def export_playlist(ctx: commands.Context, playlist_name: str, items: list[MusicItem]):
+        _item = [dict(title=item.name, url=item.url) for item in items]
+        export = {
+            "name": playlist_name.capitalize(),
+            "items": _item
+        }
+        with open(f"tmp/{playlist_name}-{ctx.guild.id}.export.json", "w") as file:
+            json.dump(export, file, indent=4)
+        await ctx.send(embed=discord.Embed(
+                title='Playlist export!',
+                color=discord.Color.magenta()
+            ), file=discord.File(f"./tmp/{playlist_name}-{ctx.guild.id}.export.json", filename=f"{playlist_name}.json")
+        )
+        os.remove(f"tmp/{playlist_name}-{ctx.guild.id}.export.json")
+
+    @staticmethod
+    async def insert_item(ctx: commands.Context, playlist_name: str, items: list[MusicItem]):
+        db = MusicDB(ctx.guild.id)
+        db.create_connection()
+        _exist = []
+        for item in items:
+            try:
+                db.insert_item(playlist_name.lower(), item)
+            except sqlite3.IntegrityError:
+                _exist.append(str(item))
+                continue
+        db.close()
+        await ctx.send(embed=discord.Embed(
+            title='Following items already exist!',
+            description="\n".join(_exist),
+            color=discord.Color.magenta()
+        ))
+        return
+
+    @staticmethod
+    async def import_playlist(ctx: commands.Context, attachment: discord.Attachment):
+        await attachment.save(f"tmp/{attachment.id}-{ctx.guild.id}.json")
+        with open(f"tmp/{attachment.id}-{ctx.guild.id}.json", "r") as file:
+            data = json.load(file)
+        playlist_name = data['name'].lower()
+        items = [
+            MusicItem.from_dict(i) for i in data['items']
+        ]
+        await MusicUtils.insert_item(ctx, playlist_name, items)
+        await ctx.send(embed=discord.Embed(
+            title=f'Imported playlist {playlist_name.capitalize()}',
+            color=discord.Color.magenta()
+        ))
+        os.remove(f"tmp/{attachment.id}-{ctx.guild.id}.json")
 
 
 class Music(commands.Cog):
@@ -393,6 +420,8 @@ class Music(commands.Cog):
         return state
 
     def cog_unload(self):
+        shutil.rmtree("tmp", onerror=lambda f, p, e: logger.error(e))
+        os.mkdir("tmp")
         for state in self.voice_states.values():
             self.bot.loop.create_task(state.stop())
 
@@ -856,11 +885,7 @@ class Music(commands.Cog):
             else:
                 # get first item from search
                 items = [MusicItem.from_dict(youtube.search_video(item)[0])]
-        db = MusicDB(ctx.guild.id)
-        db.create_connection()
-        for video in items:
-            db.insert_item(playlist_name.lower(), video)
-        db.close()
+        await MusicUtils.insert_item(ctx, playlist_name, items)
         return await ctx.send(embed=discord.Embed(
             title=f'Added item to {playlist_name.capitalize()}!',
             color=discord.Color.magenta()
@@ -939,6 +964,31 @@ class Music(commands.Cog):
             description=str(_item),
             color=discord.Color.magenta()
         ))
+
+    @_playlist.command('export', aliases=['e'])
+    async def _p_export(self, ctx: commands.Context, playlist_name: str):
+        db = MusicDB(ctx.guild.id)
+        db.create_connection()
+        items = db.get_playlist_items(playlist_name.lower())
+        db.close()
+        if not await MusicUtils.check_db_value(ctx, playlist_name, items):
+            return
+        await MusicUtils.export_playlist(ctx, playlist_name, items)
+        return
+
+    @_playlist.command('import', aliase=['i'])
+    async def _p_import(self, ctx: commands.Context):
+        attachments = ctx.message.attachments
+        for attachment in attachments:
+            if attachment.filename.endswith(".json"):
+                await MusicUtils.import_playlist(ctx, attachment)
+            else:
+                await ctx.send(embed=discord.Embed(
+                    title='Invalid attachment!',
+                    description=f"Cannot import file {attachment.filename}",
+                    color=discord.Color.magenta()
+                ))
+        return
 
     @commands.command(name='search', aliases=['s'])
     async def _search(self, ctx: commands.Context, *, query: str):
