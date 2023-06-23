@@ -807,7 +807,7 @@ class Music(commands.Cog):
             db.create_connection()
             items = db.get_playlist_items(s.lower())
             db.close()
-            if not MusicUtils.check_db_value(ctx, s, items):
+            if not await MusicUtils.check_db_value(ctx, s, items):
                 return
         embed = discord.Embed(
             title='Just a sec!',
@@ -872,7 +872,7 @@ class Music(commands.Cog):
         db.create_connection()
         items = db.get_playlist_items(playlist_name.lower())
         db.close()
-        if not MusicUtils.check_db_value(ctx, playlist_name, items):
+        if not await MusicUtils.check_db_value(ctx, playlist_name, items):
             return
         _list = "\n".join([str(i) for i in items])
         return await ctx.send(embed=discord.Embed(
@@ -887,7 +887,7 @@ class Music(commands.Cog):
         db.create_connection()
         items = db.get_playlists()
         db.close()
-        if not MusicUtils.check_db_value(ctx, None, items):
+        if not await MusicUtils.check_db_value(ctx, None, items):
             return
         _list = "\n".join([str(i).capitalize() for i in items])
         return await ctx.send(embed=discord.Embed(
@@ -902,7 +902,7 @@ class Music(commands.Cog):
         db.create_connection()
         item = db.delete_from_id(playlist_name.lower(), id)
         db.close()
-        if not MusicUtils.check_db_value(ctx, playlist_name, item):
+        if not await MusicUtils.check_db_value(ctx, playlist_name, item):
             return
         item.id = None
         return await ctx.send(embed=discord.Embed(
@@ -916,7 +916,7 @@ class Music(commands.Cog):
         db = MusicDB(ctx.guild.id)
         db.create_connection()
         _items = db.get_items_from_name(playlist_name.lower(), item)
-        if not MusicUtils.check_db_value(ctx, playlist_name, _items):
+        if not await MusicUtils.check_db_value(ctx, playlist_name, _items):
             return
         if len(_items) != 1:
             await ctx.send(embed=discord.Embed(
