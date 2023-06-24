@@ -64,28 +64,29 @@ class UtilCogs(commands.Cog):
 
     @commands.is_owner()
     @commands.guild_only()
-    @commands.hybrid_command(name='sync')
-    async def _sync_commands(self, ctx: commands.Context, guilds: commands.Greedy[discord.Guild],
+    @commands.command(name='sync')
+    async def _sync_commands(self, ctx: commands.Context, guilds: commands.Greedy[discord.Guild] = None,
                              mode: Optional[Literal['~', '*', '^']] = None):
+        await ctx.message.delete()
         if not guilds:
             if mode == '~':
-                await ctx.bot.tree.sync(guild=ctx.guild)
-                msg = "Synced current server!"
+                await self.bot.tree.sync(guild=ctx.guild)
+                msg = 'Synced current server!'
             elif mode == '*':
-                await ctx.bot.tree.sync()
-                ctx.bot.tree.copy_global_to(guild=ctx.guild)
+                self.bot.tree.copy_global_to(guild=ctx.guild)
+                await self.bot.tree.sync(guild=ctx.guild)
                 msg = 'Copied commands to current server!'
             elif mode == '^':
-                ctx.bot.tree.clear_commands(guild=ctx.guild)
-                await ctx.bot.tree.sync(guild=ctx.guild)
-                msg = "Cleared all commands and synced!"
+                self.bot.tree.clear_commands(guild=ctx.guild)
+                await self.bot.tree.sync(guild=ctx.guild)
+                msg = 'Synced commands to current server!'
             else:
                 await ctx.bot.tree.sync()
                 msg = "Global Sync!"
-            return await ctx.send(msg, ephemeral=True)
+            return await ctx.send(msg)
         for guild in guilds:
             try:
-                await ctx.bot.tree.sync(guild=guild)
+                await self.bot.tree.sync(guild=guild)
             except discord.HTTPException:
                 pass
         return await ctx.send("Synced commands in given servers!")
