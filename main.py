@@ -24,7 +24,6 @@ async def on_ready():
     # Listening activity
     activity = discord.Activity(type=discord.ActivityType.listening, name="Tune")
     await client.change_presence(status=discord.Status.online, activity=activity)
-    await client.tree.sync()
     print("Bot is ready\n" + " " * 50)
 
 
