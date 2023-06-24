@@ -1,6 +1,5 @@
 import discord
 from discord.ext import commands
-
 from api.anime_img import get_anime_image, get_api_bi_image
 
 
@@ -25,7 +24,7 @@ class AnimeCog(commands.Cog):
         self.bot = bot
 
     @commands.hybrid_command(name='anirx')
-    async def _anirx(self, ctx: commands.Context, endpoint: str = None):
+    async def _ani_reaction(self, ctx: commands.Context, endpoint: str = None):
         url = None
         if endpoint is not None:
             endpoint = endpoint.strip().lower()
@@ -42,7 +41,7 @@ class AnimeCog(commands.Cog):
                 return await ctx.send("Invalid endpoint", delete_after=10)
 
     @commands.hybrid_command(name="animg")
-    async def _animg(self, ctx: commands.Context):
+    async def _ani_image(self, ctx: commands.Context):
         d = await get_api_bi_image()
         image = await Image.create_image(d)
         embed = discord.Embed(
