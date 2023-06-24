@@ -19,7 +19,7 @@ class UtilCogs(commands.Cog):
                     await self.bot.load_extension(f"cogs.{ext}")
 
     @commands.is_owner()
-    @commands.hybrid_command(name='reload')
+    @commands.command(name='reload')
     async def _reload(self, ctx: commands.Context, cog: str = None):
         await ctx.message.delete()
         if cog is None:
@@ -28,16 +28,16 @@ class UtilCogs(commands.Cog):
         if cog not in cogs and cog != "all":
             return await ctx.send(f"Cog `{cog}` does not exists!", delete_after=5)
 
-        if cog == "all":
-            await self.load_ext(cogs)
-        else:
-            await self.load_ext([cog])
         embed = discord.Embed(
             title="Reloading...",
             description=f"Extension: **{cog if cog != 'all' else ', '.join(cogs)}**",
             color=discord.Color.brand_red()
         )
         msg = await ctx.send(embed=embed)
+        if cog == "all":
+            await self.load_ext(cogs)
+        else:
+            await self.load_ext([cog])
         await msg.add_reaction("👍")
         await msg.delete(delay=5)
         return
