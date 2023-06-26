@@ -213,9 +213,8 @@ class VoiceState:
         self.bot = bot
         self._ctx = ctx
 
-        self.current = None
-        self.start = None
-        self.voice = None
+        self.current: Song = None
+        self.voice: discord.VoiceClient = None
         self.next = asyncio.Event()
         self.songs = SongQueue()
 
@@ -279,7 +278,6 @@ class VoiceState:
             await self.check_source()
             self.current.source.volume = self._volume
             self.voice.play(self.current.source, after=self.play_next_song)
-            self.start = timer()
             await self.current.source.channel.send(embed=self.current.create_embed())
             await self.next.wait()
 
@@ -538,19 +536,11 @@ class Music(commands.Cog):
             )
             await ctx.send(embed=embed)
         else:
-            curr = timer() - vc.start
+            curr = vc.voice._player.loops // 50
+            vc.current.create_embed()
             played = YTDLSource.parse_duration(curr)
-            embed = discord.Embed(
-                title="Now Playing!",
-                description='[{0.source.title}]({0.source.url})'.format(vc.current),
-                color=discord.Color.blurple()
-            )
-            embed.add_field(name='Duration', value=vc.current.source.duration, inline=False)
-            embed.add_field(name="Played", value=played, inline=False)
-            embed.add_field(name='Requested by', value=vc.current.requester.mention, inline=False)
-            embed.add_field(name='Uploader', value='[{0.source.uploader}]({0.source.uploader_url})'.format(vc.current),
-                            inline=False)
-            embed.set_thumbnail(url=vc.current.source.thumbnail)
+            embed = vc.current.create_embed()
+            embed.insert_field_at(index=1, name="Played", value=played, inline=False)
             return await ctx.send(embed=embed)
 
     @commands.command(name='pause')
@@ -567,11 +557,10 @@ class Music(commands.Cog):
             return await ctx.send(embed=embed)
 
         if ctx.voice_state.voice.is_playing():
-            self.pause_time = timer()
             ctx.voice_state.voice.pause()
             await ctx.message.add_reaction('⏯')
             embed = discord.Embed(
-                title=f"{ctx.message.author} Paused the song!",
+                title=f"Paused the song!",
                 description="",
                 color=discord.Color.magenta()
             )
@@ -593,11 +582,9 @@ class Music(commands.Cog):
 
         if ctx.voice_state.voice.is_paused():
             ctx.voice_state.voice.resume()
-            elapsed = timer() - self.pause_time
-            ctx.voice_state.start = ctx.voice_state.start - elapsed
             await ctx.message.add_reaction('⏯')
             embed = discord.Embed(
-                title=f"{ctx.message.author} Resumed the song!",
+                title=f"Resumed the song!",
                 description="",
                 color=discord.Color.magenta()
             )
@@ -652,28 +639,16 @@ class Music(commands.Cog):
             return
         if pos is None or pos == 0:
             raise commands.MissingRequiredArgument(param=Parameter('pos', int))
+
         vc = ctx.voice_state
         vc.voice.pause()
-        elapsed = timer() - vc.start
-        if elapsed > vc.current.source.int_duration:
-            return await ctx.send(embed=discord.Embed(
-                title="Song has finished!",
-                colour=discord.Color.magenta()
-            ))
         if pos == -1:
             start_time = 0
         else:
-            start_time = elapsed + pos
-
+            start_time = ctx.voice_state.voice._player.loops + pos
         vc.current.source = await YTDLSource.create_source(ctx, vc.current.source.url, time=start_time)
         vc.current.source.volume = vc.volume
-        # just to get accurate start time...
-        if pos == -1:
-            vc.start = timer()
-        else:
-            vc.start = vc.start - pos
         vc.voice.play(vc.current.source, after=vc.play_next_song)
-        vc.end = vc.current.source.int_duration
         embed = discord.Embed(
             title=f"Skipped {pos} sec(s)!" if pos > 0 else "Restarting the song!",
             color=discord.Color.magenta()
@@ -744,7 +719,7 @@ class Music(commands.Cog):
         ctx.voice_state.songs.shuffle()
         await ctx.message.add_reaction('✅')
         embed = discord.Embed(
-            title=f"{ctx.message.author} Shuffled the queue!",
+            title=f"{ctx.message.author.mention} Shuffled the queue!",
             description="",
             color=discord.Color.magenta()
         )
@@ -772,7 +747,7 @@ class Music(commands.Cog):
         ctx.voice_state.songs.remove(index - 1)
         await ctx.message.add_reaction('✅')
         embed = discord.Embed(
-            title=f"{ctx.message.author} Removed a song from the queue!",
+            title=f"Removed a song from the queue!",
             description="",
             color=discord.Color.magenta()
         )
