@@ -38,7 +38,7 @@ class QueueButton(discord.ui.View):
         self.current = 1
         self.pages = pages
         self.func = func
-        self.args = list(args)
+        self.args = args[0]
 
     async def on_timeout(self) -> None:
         for item in self.children:
@@ -54,6 +54,7 @@ class QueueButton(discord.ui.View):
     async def prev_button_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
         if self.current == 1 and self.pages == 1:
             return await interaction.response.send_message("No previous page!", ephemeral=True)
+        await interaction.response.defer()
         if self.current == 1:
             prev_page = self.pages
         else:
@@ -62,12 +63,13 @@ class QueueButton(discord.ui.View):
         embed, pages = self.func(*self.args)
         self.pages = pages
         self.current = prev_page
-        await interaction.response.edit_message(embed=embed)
+        await interaction.followup.edit_message(message_id=interaction.message.id, embed=embed)
 
     @discord.ui.button(label="→", style=discord.ButtonStyle.green)
     async def next_button_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
         if self.current == 1 and self.pages == 1:
             return await interaction.response.send_message("No next page!", ephemeral=True)
+        await interaction.response.defer()
         if self.current == self.pages:
             next_page = 1
         else:
@@ -76,7 +78,7 @@ class QueueButton(discord.ui.View):
         embed, pages = self.func(*self.args)
         self.pages = pages
         self.current = next_page
-        await interaction.response.edit_message(embed=embed)
+        await interaction.followup.edit_message(message_id=interaction.message.id, embed=embed)
 
 
 class YTDLSource(discord.PCMVolumeTransformer):
@@ -717,7 +719,7 @@ class Music(commands.Cog):
             return await ctx.send('Empty queue.')
 
         embed, pages = MusicUtils.get_queue(ctx, page)
-        view = QueueButton(ctx, pages, MusicUtils.get_queue, (ctx, page))
+        view = QueueButton(ctx, pages, MusicUtils.get_queue, [ctx, page])
         msg = await ctx.send(embed=embed, view=view)
         view.message = msg
 
@@ -898,7 +900,7 @@ class Music(commands.Cog):
         if not await MusicUtils.check_db_value(ctx, playlist_name, items):
             return
         embed, pages = MusicUtils.get_playlist_queue(playlist_name, items)
-        view = QueueButton(ctx, pages, MusicUtils.get_playlist_queue, (playlist_name, items, 1))
+        view = QueueButton(ctx, pages, MusicUtils.get_playlist_queue, [playlist_name, items, 1])
         msg = await ctx.send(embed=embed, view=view)
         view.message = msg
 
