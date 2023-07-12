@@ -20,7 +20,8 @@ class MusicSQL:
     SELECT_ITEM = "SELECT * FROM {table_name} WHERE id={id};"
     SELECT_ITEM_NAME = "SELECT * FROM {table_name} WHERE name LIKE '%{name}%';"
     SELECT_TABLES = "SELECT * FROM sqlite_master WHERE type='table' AND name != 'sqlite_sequence';"
-    DELETE_FROM = "DELETE FROM {table_name} WHERE id={id}"
+    DELETE_FROM = "DELETE FROM {table_name} WHERE id={id};"
+    DROP_TABLE = "DROP TABLE {table_name};"
 
 
 class MusicItem:
@@ -103,7 +104,7 @@ class MusicDB:
         curr = self.conn.cursor()
         tables = curr.execute(MusicSQL.SELECT_TABLES).fetchall()
         if not tables:
-            return None
+            return None  # no playlists
         tables = [t[1] for t in tables]
         return tables
 
@@ -136,3 +137,10 @@ class MusicDB:
         curr.execute(MusicSQL.DELETE_FROM.format(table_name=name, id=id))
         self.conn.commit()
         return MusicItem.from_list(item)
+
+    def drop_playlist(self, playlist: str) -> int | str:
+        if not self.contains(playlist):
+            return 0
+        curr = self.conn.cursor()
+        curr.execute(MusicSQL.DROP_TABLE.format(table_name=playlist))
+        return playlist

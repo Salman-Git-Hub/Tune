@@ -83,6 +83,7 @@ pl `playlist url | playlist name` - Adds the playlist to the queue.
 pl add `playlist name `url | name` ` - Adds an item to the playlist.
 pl remove `playlist name` `id` - Remove an item from playlist.
 pl removen `playlist name` `name` - Remove using name.
+pl delete `playlist name` - Remove a playlist.
 pl server - Get a list of server's playlist.
 pl list `playlist name` - Lists the items in a playlist.**
         """

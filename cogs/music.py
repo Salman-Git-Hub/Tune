@@ -917,7 +917,7 @@ class Music(commands.Cog):
             color=discord.Color.magenta()
         ))
 
-    @_playlist.command('remove', aliases=['r', 'delete', 'd'])
+    @_playlist.command('remove', aliases=['r'])
     async def _p_remove(self, ctx: commands.Context, playlist_name: str, id: int):
         db = MusicDB(ctx.guild.id)
         db.create_connection()
@@ -932,7 +932,7 @@ class Music(commands.Cog):
             color=discord.Color.magenta()
         ))
 
-    @_playlist.command('removen', aliases=['rn', 'deleten', 'dn'])
+    @_playlist.command('removen', aliases=['rn'])
     async def _p_remove_n(self, ctx: commands.Context, playlist_name: str, *, item: str):
         db = MusicDB(ctx.guild.id)
         db.create_connection()
@@ -985,6 +985,19 @@ class Music(commands.Cog):
                     color=discord.Color.magenta()
                 ))
         return
+
+    @_playlist.command('delete', aliases=['d'])
+    async def _p_delete(self, ctx: commands.Context, playlist_name: str):
+        db = MusicDB(ctx.guild.id)
+        db.create_connection()
+        r = db.drop_playlist(playlist_name.lower())
+        if not await MusicUtils.check_db_value(ctx, playlist_name, r):
+            return
+        return await ctx.send(embed=discord.Embed(
+            title='Deleted playlist!',
+            description=r.capitalize(),
+            color=discord.Color.magenta()
+        ))
 
     @commands.command(name='search', aliases=['s'])
     async def _search(self, ctx: commands.Context, *, query: str):
