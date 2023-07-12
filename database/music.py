@@ -46,7 +46,7 @@ class MusicItem:
         return cls(name, url, None)
 
     def __str__(self) -> str:
-        return f"{self.id}. [{self.name}]({self.url})" if self.id is not None else f"[{self.name}]({self.url})"
+        return f"`{self.id}.` [{self.name}]({self.url})" if self.id is not None else f"[{self.name}]({self.url})"
 
     def __repr__(self) -> str:
         return self.__str__()
