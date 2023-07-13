@@ -5,10 +5,9 @@ import discord
 from discord.ext import commands
 from utils.logger import init_discord_logger
 from utils.cache import clear_cache
-from utils.env import TOKEN, PREFIX, LOG_LEVEL
 
-init_discord_logger(log_level=LOG_LEVEL)
-client = commands.Bot(command_prefix=PREFIX,
+init_discord_logger(log_level=os.environ['LOG_LEVEL'])
+client = commands.Bot(command_prefix=os.environ['PREFIX'],
                       help_command=None,
                       intents=discord.Intents.all())
 
@@ -41,6 +40,6 @@ async def load_ext():
 
 print("\nStarting Tune!")
 asyncio.run(load_ext())
-client.run(TOKEN, log_handler=None)
+client.run(os.environ['TOKEN'], log_handler=None)
 print("Shutting down!!")
 clear_cache()

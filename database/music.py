@@ -1,6 +1,8 @@
 import os
 import sqlite3
-from utils.env import DB_PATH
+
+
+DB_PATH = os.environ['DB_PATH']
 
 
 class MusicSQL:
