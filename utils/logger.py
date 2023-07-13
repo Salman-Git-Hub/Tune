@@ -2,8 +2,7 @@ import logging
 from logging import handlers
 
 
-def init_discord_logger(filename: str = "discord.log", log_level: int = logging.INFO,
-                        max_bytes: int = 10455040, backup_count: int = 5):
+def init_discord_logger(filename: str = "discord.log", log_level: int = logging.INFO):
     discord_logger = logging.getLogger("discord")
     discord_logger.propagate = False
     discord_logger.setLevel(log_level)
@@ -11,13 +10,11 @@ def init_discord_logger(filename: str = "discord.log", log_level: int = logging.
     handler = handlers.RotatingFileHandler(
         filename=filename,
         encoding='utf-8',
-        maxBytes=max_bytes,  # 10 MiB
-        backupCount=backup_count
+        maxBytes=1024 * 1024 * 5,  # 5 MiB
+        backupCount=5
     )
     dt_fmt = '%Y-%m-%d %H:%M:%S'
     formatter = logging.Formatter('[{asctime}] [{levelname:<8}] {name}: {message}', dt_fmt, style='{')
     handler.setFormatter(formatter)
     discord_logger.addHandler(handler)
     return
-
-
