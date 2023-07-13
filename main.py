@@ -2,9 +2,13 @@ import asyncio
 import os
 import time
 import discord
+from dotenv import load_dotenv
 from discord.ext import commands
 from utils.logger import init_discord_logger
 from utils.cache import clear_cache
+
+
+load_dotenv()
 
 init_discord_logger(log_level=os.environ['LOG_LEVEL'])
 client = commands.Bot(command_prefix=os.environ['PREFIX'],
