@@ -6,6 +6,7 @@ import shutil
 import sqlite3
 from urllib.parse import parse_qs, urlparse
 from timeit import default_timer as timer
+import functools
 import itertools
 import logging
 import math
@@ -140,7 +141,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
         return '**{0.title}** by **{0.uploader}**'.format(self)
 
     @classmethod
-    async def create_source(cls, ctx: commands.Context, search: str, *,
+    def create_source(cls, ctx: commands.Context, search: str, *,
                             time: int = 0):
         with YTDLSource.ytdlp as ytdl:
             data = ytdl.extract_info(search, download=False)
@@ -257,7 +258,10 @@ class VoiceState:
         if elapsed > 60 * 5:  # 5 minutes
             # recreate source
             # since YouTube streaming links expire after some time
-            new_source = await YTDLSource.create_source(self._ctx, self.current.source.url)
+            new_source = await self.bot.loop.run_in_executor(
+                None,
+                functools.partial(YTDLSource.create_source, ctx=self._ctx, search=self.current.source.url)
+            )
             self.current = Song(new_source, timer())
             self.current.requester = self.current.requester
 
@@ -278,7 +282,10 @@ class VoiceState:
                     return
             else:
                 # await self.songs.put(self.current)
-                o_src = await YTDLSource.create_source(self._ctx, self.current.source.url)
+                o_src = await self.bot.loop.run_in_executor(
+                    None,
+                    functools.partial(YTDLSource.create_source, ctx=self._ctx, search=self.current.source.url)
+                )
                 await self.songs.put(Song(o_src, timer()))
                 self.current = await self.songs.get()
             await self.check_source()
@@ -665,8 +672,11 @@ class Music(commands.Cog):
         if pos == -1:
             start_time = 0
         else:
-            start_time = ctx.voice_state.voice._player.loops + pos
-        vc.current.source = await YTDLSource.create_source(ctx, vc.current.source.url, time=start_time)
+            start_time = (ctx.voice_state.voice._player.loops // 50) + pos
+        vc.current.source = await ctx.bot.loop.run_in_executor(
+            None,
+            functools.partial(YTDLSource.create_source, ctx=ctx, search=vc.current.source.url, time=start_time)
+        )
         vc.current.source.volume = vc.volume
         vc.voice.play(vc.current.source, after=vc.play_next_song)
         embed = discord.Embed(
@@ -787,10 +797,8 @@ class Music(commands.Cog):
         ctx.voice_state.loop = not ctx.voice_state.loop
         await ctx.message.add_reaction('✅')
 
-    async def add_to_queue(self, ctx: commands.Context, items: list[dict | MusicItem], name: str = None):
-
-        ctx.voice_state = self.get_voice_state(ctx)
-
+    def queue_item(self, ctx: commands.Context, items: list[dict | MusicItem]) -> list[dict]:
+        sources = []
         for video in items:
             try:
                 # from online playlist, keys -> title, id
@@ -799,11 +807,34 @@ class Music(commands.Cog):
                 # from local database, MusicItem -> name, url, id
                 video_id = video.url
             try:
-                source = await YTDLSource.create_source(ctx, video_id)
-                await ctx.voice_state.songs.put(Song(source, timer()))
+                source = YTDLSource.create_source(ctx, video_id)
+                sources.append(dict(source=source, time=timer()))
+                # await ctx.voice_state.songs.put(Song(source, timer()))
             except yt_dlp.DownloadError as e:
                 logger.error(e)
                 continue
+        return sources
+
+    async def add_to_queue(self, ctx: commands.Context, items: list[dict | MusicItem], name: str = None):
+        sources = await self.bot.loop.run_in_executor(None, functools.partial(self.queue_item, ctx=ctx, items=items))
+
+        ctx.voice_state = self.get_voice_state(ctx)
+        voice = ctx.voice_state.voice
+
+        if voice is None or ctx.voice_state.is_playing is None:
+            ctx.voice_state.audio_player.cancel()
+            ctx.voice_state.audio_player = None
+
+        for source in sources:
+            await ctx.voice_state.songs.put(Song(**source))
+
+        # check if bot is in vc
+        if not ctx.voice_state.voice:
+            await ctx.invoke(self._join)
+
+        if ctx.voice_state.audio_player is None:
+            ctx.voice_state.audio_player = ctx.bot.loop.create_task(ctx.voice_state.audio_player_task())
+
         embed = discord.Embed(
             title=f'Added playlist {name if name is not None else ""} to the queue!',
             description='',
@@ -1031,7 +1062,10 @@ class Music(commands.Cog):
             await ctx.invoke(self._join)
 
         async with ctx.typing():
-            source = await YTDLSource.create_source(ctx, search)
+            source = await ctx.bot.loop.run_in_executor(
+                None,
+                functools.partial(YTDLSource.create_source, ctx, search)
+            )
             song = Song(source, timer())
 
             await ctx.voice_state.songs.put(song)
