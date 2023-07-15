@@ -113,7 +113,8 @@ class MusicDB:
     def insert_item(self, name: str, item: MusicItem):
         self.create_playlist(name)  # in case db does not exist
         curr = self.conn.cursor()
-        # will raise IntegrityError on inserting existing item
+        # would raise IntegrityError on inserting existing item
+        # solved by making use of UNIQUE while creating table
         curr.execute(MusicSQL.INSERT_ITEM.format(table_name=name, name=item.name, url=item.url))
         self.conn.commit()
         return
