@@ -3,10 +3,10 @@ pyparsing==3.1.0
 yt-dlp==2023.7.6
 discord.py==2.3.1
 ffmpeg==1.4
-aiohttp==3.8.4
+aiohttp==3.8.5
 requests==2.31.0
 async-timeout==4.0.2
-google-api-python-client==2.93.0
+google-api-python-client==2.94.0
 psutil==5.9.5
 humanize==4.7.0
 python-dotenv==1.0.0
