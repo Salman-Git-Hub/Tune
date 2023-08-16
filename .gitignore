@@ -2,7 +2,8 @@
 .env
 venv/
 .python-version
-discord.log
+*.log
+*.log*
 db/
 __pycache__/
 tmp/
