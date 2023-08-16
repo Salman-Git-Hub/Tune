@@ -4,6 +4,7 @@ import json
 import asyncio
 import shutil
 import sqlite3
+from asyncio import Task
 from urllib.parse import parse_qs, urlparse
 from timeit import default_timer as timer
 import functools
@@ -228,6 +229,7 @@ class VoiceState:
         self._loop = False
         self._volume = 0.5
 
+        self.exec_task: Task = None
         self.audio_player = bot.loop.create_task(self.audio_player_task())
 
     def __del__(self):
@@ -308,6 +310,9 @@ class VoiceState:
 
     async def stop(self):
         self.songs.clear()
+        self.audio_player.cancel()
+        if self.exec_task is not None:
+            self.exec_task.cancel()
 
         if self.voice:
             await self.voice.disconnect()
@@ -347,9 +352,10 @@ class MusicUtils:
         start, end, pages = MusicUtils._queue(items, page)
 
         _items = '\n'.join([str(i) for i in items[start:end]])
-        return discord.Embed(title=name.capitalize(),
+        return (discord.Embed(title=name.capitalize(),
                              description=_items,
-                             color=discord.Color.magenta()), pages
+                             color=discord.Color.magenta())
+                .set_footer(text='Viewing page {}/{}'.format(page, pages)), pages)
 
     @staticmethod
     async def check_db_value(ctx: commands.Context, name: str | None, val: list[MusicItem] | None | int) -> bool:
@@ -816,14 +822,25 @@ class Music(commands.Cog):
         return sources
 
     async def add_to_queue(self, ctx: commands.Context, items: list[dict | MusicItem], name: str = None):
-        sources = await self.bot.loop.run_in_executor(None, functools.partial(self.queue_item, ctx=ctx, items=items))
-
         ctx.voice_state = self.get_voice_state(ctx)
         voice = ctx.voice_state.voice
 
+        ctx.voice_state.exec_task = self.bot.loop.run_in_executor(None, functools.partial(self.queue_item, ctx=ctx, items=items))
+        sources = await ctx.voice_state.exec_task
+
+        # bot might disconnect if it takes too long
+        # so ensuring a new audio_player task is created
         if voice is None or ctx.voice_state.is_playing is None:
             ctx.voice_state.audio_player.cancel()
             ctx.voice_state.audio_player = None
+        else:
+            # stop command might have been run!
+            # don't know if this is supposed to do anything....
+            return
+
+        # task might be cancelled, and returns a bool value
+        if isinstance(sources, bool):
+            return
 
         for source in sources:
             await ctx.voice_state.songs.put(Song(**source))
