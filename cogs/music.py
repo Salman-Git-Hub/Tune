@@ -14,6 +14,7 @@ import math
 import random
 import discord
 import yt_dlp
+from StringProgressBar import progressBar
 from async_timeout import timeout
 from discord.ext import commands
 from discord.ext.commands import Parameter
@@ -98,6 +99,12 @@ class YTDLSource(discord.PCMVolumeTransformer):
         'no_warnings': True,
         'default_search': 'auto',
         'source_address': '0.0.0.0',
+        'postprocessors': [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'wav',
+            'preferredquality': '192',
+        }],
+        "cachedir": os.path.join(os.getcwd(), ".cache")
     }
 
     FFMPEG_OPTIONS = {
@@ -228,6 +235,8 @@ class VoiceState:
 
         self._loop = False
         self._volume = 0.5
+
+        self.seeks = []
 
         self.exec_task: Task = None
         self.audio_player = bot.loop.create_task(self.audio_player_task())
@@ -561,6 +570,7 @@ class Music(commands.Cog):
         """Displays the currently playing song."""
 
         vc = self.get_voice_state(ctx)
+
         if not vc.is_playing:
             embed = discord.Embed(
                 title="I am playing nothing!",
@@ -569,11 +579,15 @@ class Music(commands.Cog):
             )
             await ctx.send(embed=embed)
         else:
-            curr = vc.voice._player.loops // 50
+            curr = (vc.voice._player.loops // 50) + sum(vc.seeks)
             vc.current.create_embed()
+            duration = vc.current.source.int_duration
             played = YTDLSource.parse_duration(curr)
+            progress = progressBar.splitBar(duration, curr, size=12)[0]
+            print(progress, curr, duration)
             embed = vc.current.create_embed()
             embed.insert_field_at(index=1, name="Played", value=played, inline=False)
+            embed.insert_field_at(index=2, name="", value=progress, inline=False)
             return await ctx.send(embed=embed)
 
     @commands.command(name='pause')
@@ -677,6 +691,8 @@ class Music(commands.Cog):
         vc.voice.pause()
         if pos == -1:
             start_time = 0
+            pos = 0
+            vc.seeks.clear()
         else:
             start_time = (ctx.voice_state.voice._player.loops // 50) + pos
         vc.current.source = await ctx.bot.loop.run_in_executor(
@@ -689,6 +705,7 @@ class Music(commands.Cog):
             title=f"Skipped {pos} sec(s)!" if pos > 0 else "Restarting the song!",
             color=discord.Color.magenta()
         )
+        vc.seeks.append(pos)
         return await ctx.send(embed=embed)
 
     @commands.command(name='skip')
@@ -892,7 +909,7 @@ class Music(commands.Cog):
             color=discord.Color.magenta()
         )
         await ctx.send(embed=embed)
-        await asyncio.gather(self.add_to_queue(ctx, items, s))
+        await asyncio.gather(*[self.add_to_queue(ctx, items, s)])
 
     @_playlist.command('create', aliases=['c'])
     async def _p_create(self, ctx: commands.Context, playlist_name: str):
