@@ -584,7 +584,6 @@ class Music(commands.Cog):
             duration = vc.current.source.int_duration
             played = YTDLSource.parse_duration(curr)
             progress = progressBar.splitBar(duration, curr, size=12)[0]
-            print(progress, curr, duration)
             embed = vc.current.create_embed()
             embed.insert_field_at(index=1, name="Played", value=played, inline=False)
             embed.insert_field_at(index=2, name="", value=progress, inline=False)
