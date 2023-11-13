@@ -11,10 +11,9 @@ class MusicSQL:
     """
     CREATE_TABLE = """
         CREATE TABLE IF NOT EXISTS {table_name} (
-           name TEXT NOT NULL,
-           url TEXT NOT NULL,
-           id INTEGER PRIMARY KEY AUTOINCREMENT,
-           UNIQUE (name, url)
+           name TEXT NOT NULL UNIQUE,
+           url TEXT NOT NULL UNIQUE,
+           id INTEGER PRIMARY KEY AUTOINCREMENT
        );
     """
     INSERT_ITEM = "INSERT INTO {table_name} (name, url) VALUES ('{name}', '{url}');"
