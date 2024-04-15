@@ -3,7 +3,7 @@ pyparsing==3.1.2
 yt-dlp==2024.4.9
 discord.py==2.3.2
 ffmpeg==1.4
-aiohttp==3.9.3
+aiohttp==3.9.4
 requests==2.31.0
 async-timeout==4.0.3
 google-api-python-client==2.125.0
